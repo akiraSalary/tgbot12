@@ -17,7 +17,7 @@ class Program
 
 
 
-            // - а тут /start -
+            // - - а тут /start - -
             if (input == "/start")
             {
                 Console.Write("Укажите ваше имя:");
@@ -28,7 +28,7 @@ class Program
                 continue;
             }
 
-            // - тут /exit -
+            // - - тут /exit - -
             if (input == "/exit")
             {
                 Console.WriteLine($"Программа завершена. До свидания, {userName}!");
