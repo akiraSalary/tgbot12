@@ -30,7 +30,7 @@ class Program
             {
                 Console.Write("Укажите ваше имя:");
                 string? name = Console.ReadLine();
-             
+
                 if (name is null)
                 {
                     Console.WriteLine("Ввод отменен.");   // нулл фикс i guess? //ниче лучше я не придумал :3
@@ -38,7 +38,7 @@ class Program
                 }
 
                 userName = name.Trim();
-                if(string.IsNullOrWhiteSpace(userName))
+                if (string.IsNullOrWhiteSpace(userName))
                 {
                     Console.WriteLine("Имя не может быть пустым!");
                     continue;
@@ -114,68 +114,68 @@ class Program
                 continue;
             }
 
-                // ------ /шоутаскс (showtasks) ----
+            // ------ /шоутаскс (showtasks) ----
 
-                 if (input.Equals( "/showtasks", StringComparison.OrdinalIgnoreCase))
+            if (input.Equals("/showtasks", StringComparison.OrdinalIgnoreCase))
+            {
+                if (tasks.Count == 0)
                 {
-                    if (tasks.Count == 0)
-                    {
-                        Console.WriteLine("Список задач пуст :(");
-                    }
-
-                    else
-                    { 
-                        Console.WriteLine("Список задач:");
-                        for (int i = 0; i < tasks.Count; i++) 
-                        Console.WriteLine($"{i + 1}. {tasks[i]}");
-                    }
-                    continue;
+                    Console.WriteLine("Список задач пуст :(");
                 }
 
-
-                // -- remove -- 
-
-                if (input == "/removetask")
+                else
                 {
-                    if (tasks.Count == 0)
-                    {
-                        Console.WriteLine("Нельзя удалить эту задачу :), в списке задач еще ничего нету. ");
-                        continue;
-
-                    }
-
                     Console.WriteLine("Список задач:");
                     for (int i = 0; i < tasks.Count; i++)
-                    {
                         Console.WriteLine($"{i + 1}. {tasks[i]}");
-                    }
+                }
+                continue;
+            }
 
-                    Console.Write("Введите номер задачи для удаления:");
-                    string? numberInput = Console.ReadLine();
-                    int taskNumber;
 
-                    if (!int.TryParse(numberInput, out taskNumber))
-                    {
-                        Console.WriteLine("Введен некоректный номер задачи. Попробуте еще.");  // некоректка для комбинаций НЕ чисел)
-                        continue;
-                    }
+            // -- remove -- 
 
-                    if (taskNumber < 1 || taskNumber > tasks.Count)
-                    {
-                        Console.WriteLine("Такого номера в листе нету. Введите корректный.");  // тут понятно в целом
-                        continue;
-                    }
+            if (input == "/removetask")
+            {
+                if (tasks.Count == 0)
+                {
+                    Console.WriteLine("Нельзя удалить эту задачу :), в списке задач еще ничего нету. ");
+                    continue;
 
-                    // --- aaaa index -----
-                    string removeTask = tasks[taskNumber - 1];     // для удаления
-                    tasks.RemoveAt(taskNumber - 1);
-                    Console.WriteLine($"Задача \"{removeTask}\" удалена.");
+                }
+
+                Console.WriteLine("Список задач:");
+                for (int i = 0; i < tasks.Count; i++)
+                {
+                    Console.WriteLine($"{i + 1}. {tasks[i]}");
+                }
+
+                Console.Write("Введите номер задачи для удаления:");
+                string? numberInput = Console.ReadLine();
+                int taskNumber;
+
+                if (!int.TryParse(numberInput, out taskNumber))
+                {
+                    Console.WriteLine("Введен некоректный номер задачи. Попробуте еще.");  // некоректка для комбинаций НЕ чисел)
                     continue;
                 }
 
+                if (taskNumber < 1 || taskNumber > tasks.Count)
+                {
+                    Console.WriteLine("Такого номера в листе нету. Введите корректный.");  // тут понятно в целом
+                    continue;
+                }
 
-                // не думаю что нужно но добавлю всеравно 
-                Console.WriteLine("Этой команды не существует.Озакомьтесь со списком доступных команд в /help.");
+                // --- aaaa index -----
+                string removeTask = tasks[taskNumber - 1];     // для удаления
+                tasks.RemoveAt(taskNumber - 1);
+                Console.WriteLine($"Задача \"{removeTask}\" удалена.");
+                continue;
             }
+
+
+            // не думаю что нужно но добавлю всеравно 
+            Console.WriteLine("Этой команды не существует.Озакомьтесь со списком доступных команд в /help.");
         }
     }
+}
