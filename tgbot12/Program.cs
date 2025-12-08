@@ -1,22 +1,66 @@
 ﻿using System;
 using System.Collections.Generic;
 
+public class TaskCountLimitException : Exception     //count
+{
+    public TaskCountLimitException(string message) : base(message) { }
+}
+
+public class TaskLengthLimitException : Exception   //limit
+{
+    public TaskLengthLimitException(string message) : base(message) { }
+}
+
 class Program
 {
     static string userName = "";
     static bool isStarted = false;
-    static bool isRun = true;                   // есть isRun
+    static bool isRun = true;
+    static int MaxTaskCount = 10;
+    static int MaxTaskLength = 100;
     static List<string> tasks = new List<string>();
 
     static void Main(string[] args)
     {
-        Console.WriteLine("Это тест менюха тг бота!");
-        Console.WriteLine("Доступные команды: /start, /help, /info, /echo, /addtask, /showtasks, /removetask, /exit");
+        Console.Title = "тг бот хехеехеххеехехех";        // почему бы и нет ехехехехехех
 
-        while (isRun)                           // применение
+        try                                   //catch в котором я не уверен
         {
-            Console.Write("\nВведите команду: ");
-            string? input = Console.ReadLine();
+            ConfigureLimits();
+            RunBot();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\nОшибка при запуске: {ex.Message}");
+            Console.WriteLine("Программа будет завершена.");
+        }
+        finally
+        {
+            Console.WriteLine("\nНажмите любую клавишу для выхода...");
+            Console.ReadKey();
+        }
+    }
+
+    static void ConfigureLimits()     //лимиты
+    {
+        Console.WriteLine("Настройка лимитов\n");
+
+        MaxTaskCount = ParseAndValidateInt("Введите максимальное количество задач 1-100: ", 1, 100);
+        MaxTaskLength = ParseAndValidateInt("Введите максимальную длину задачи 1-100: ", 1, 100);
+
+        Console.WriteLine($"\nЛимиты выставлены: {MaxTaskCount} задач  по {MaxTaskLength} символов\n");
+    }
+
+    static void RunBot()
+    {
+       
+        Console.WriteLine("Это консольный тг бот для задачек");
+        Console.WriteLine("Доступные команды: /start /help /info /echo /addtask /showtasks /removetask /exit\n");
+
+        while (isRun)
+        {
+            Console.Write("Команда: ");
+            string? input = Console.ReadLine();      //null fix
 
             if (input is null)
             {
@@ -25,173 +69,174 @@ class Program
             }
 
             input = input.Trim();
-            if (string.IsNullOrWhiteSpace(input))
-                continue;
+            if (string.IsNullOrWhiteSpace(input)) continue;
 
-            // обработка
-            if (input.Equals("/start", StringComparison.OrdinalIgnoreCase))
+            switch (input.ToLower())
             {
-                StartCommand();
-            }
-            else if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase))
-            {
-                isRun = false;
-                Console.WriteLine($"Программа завершена. До свидания, {userName}!");
-            }
-            else if (input.Equals("/help", StringComparison.OrdinalIgnoreCase) ||
-                     input.Equals("/info", StringComparison.OrdinalIgnoreCase))
-            {
-                // постоянные команды
-                if (input[1] == 'h') HelpCommand();
-                else InfoCommand();
-            }
-            else if (!isStarted)
-            {
-                Console.WriteLine("Сначала введите /start и укажите имя!");
-            }
-            else if (input.StartsWith("/echo", StringComparison.OrdinalIgnoreCase))
-            {
-                EchoCommand(input);
-            }
-            else if (input.Equals("/addtask", StringComparison.OrdinalIgnoreCase))
-            {
-                AddTaskCommand();
-            }
-            else if (input.Equals("/showtasks", StringComparison.OrdinalIgnoreCase))
-            {
-                ShowTasksCommand();
-            }
-            else if (input.Equals("/removetask", StringComparison.OrdinalIgnoreCase))
-            {
-                RemoveTaskCommand();
-            }
-            else
-            {
-                Console.WriteLine("Неизвестная команда. Введите /help для списка команд.");
+                case "/start":
+                    StartCommand();
+                    break;
+
+                case "/exit":
+                    isRun = false;
+                    Console.WriteLine($"До свидания, {userName}!");
+                    break;
+
+                case "/help":
+                    HelpCommand();
+                    break;
+
+                case "/info":
+                    InfoCommand();
+                    break;
+
+                default:
+                    if (!isStarted)
+                    { 
+                        Console.WriteLine("Сначала выполните /start\n");      //запрос старта
+                    }
+                    else if (input.StartsWith("/echo", StringComparison.OrdinalIgnoreCase))
+                        EchoCommand(input);
+                    else if (input.Equals("/addtask", StringComparison.OrdinalIgnoreCase))
+                        AddTaskCommand();
+                    else if (input.Equals("/showtasks", StringComparison.OrdinalIgnoreCase))
+                        ShowTasksCommand();
+                    else if (input.Equals("/removetask", StringComparison.OrdinalIgnoreCase))
+                        RemoveTaskCommand();
+                    else
+                        Console.WriteLine("Неизвестная команда. Введите /help\n");
+                    break;
             }
         }
     }
 
-    // 2 миллиона отдельных методов и т.д
+    static int ParseAndValidateInt(string prompt, int min, int max)        //parse
+    {
+        while (true)
+        {
+            Console.Write(prompt);
+            if (int.TryParse(Console.ReadLine(), out int value) && value >= min && value <= max)
+                return value;
+
+            Console.WriteLine($"ОШИБКА: Введите число от {min} до {max}!\n");
+        }
+    }
+
+    static string ValidateString(string? input, string fieldName)           //validate
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            throw new ArgumentException($"Поле \"{fieldName}\" не может быть пустым!");
+        return input.Trim();
+    }
+
+    //comands
 
     static void StartCommand()
     {
-        Console.Write("Укажите ваше имя: ");
-        string? name = Console.ReadLine();
-
-        if (name is null)
+        Console.Write("Введите ваше имя: ");
+        try
         {
-            Console.WriteLine("Ввод отменён.");
-            return;
+            userName = ValidateString(Console.ReadLine(), "Имя");
+            isStarted = true;
+            Console.WriteLine($"Привет, {userName}!\n");
         }
-
-        userName = name.Trim();
-        if (string.IsNullOrWhiteSpace(userName))
+        catch (ArgumentException ex)
         {
-            Console.WriteLine("Имя не может быть пустым!");
-            return;
+            Console.WriteLine($"Ошибка: {ex.Message}\n");
         }
-
-        isStarted = true;
-        Console.WriteLine($"Отлично, {userName}! Вы можете использовать команды.");
     }
-
-    // help
 
     static void HelpCommand()
     {
-        Console.WriteLine($"{userName}, список доступных команд:");
-        Console.WriteLine("/start        — представиться боту");
-        Console.WriteLine("/help         — показать эту справку");
-        Console.WriteLine("/info         — информация о боте");
-        Console.WriteLine("/echo <текст> — бот повторит текст");
-        Console.WriteLine("/addtask      — добавить задачу");
-        Console.WriteLine("/showtasks    — показать все задачи");
-        Console.WriteLine("/removetask   — удалить задачу по номеру");
-        Console.WriteLine("/exit         — выход из программы");
+        Console.WriteLine($"\n{userName}, команды:");
+        Console.WriteLine("/start      — представиться");
+        Console.WriteLine("/help       — эта справка");
+        Console.WriteLine("/info       — информация");
+        Console.WriteLine("/echo <текст> — повторить");
+        Console.WriteLine("/addtask    — добавить задачу");
+        Console.WriteLine("/showtasks  — показать задачи");
+        Console.WriteLine("/removetask — удалить задачу");
+        Console.WriteLine("/exit       — выход\n");
     }
-
-    //info
 
     static void InfoCommand()
     {
-        Console.WriteLine($"{userName}, здесь инфа по боту");
-        Console.WriteLine("Версия: 1.0.2");
-        Console.WriteLine("Программа создана: 17.11.2025");
-        Console.WriteLine("Обновлена до актуальной версии: 05.12.2025");
+        Console.WriteLine($"\nИнформация о боте для {userName}:");
+        Console.WriteLine($"Пользователь: {userName}");
+        Console.WriteLine($"Лимит задач: {MaxTaskCount}");
+        Console.WriteLine($"Лимит символов: {MaxTaskLength}\n");
+        Console.WriteLine("Дата создания: 17.11.2025");
+        Console.WriteLine("Версия: 1.1.0");
     }
 
-    // echo
-
-    static void EchoCommand(string input)
+    static void EchoCommand(string cmd)
     {
-        string text = input.Length > 6 ? input.Substring(6).TrimStart() : "";
-        Console.WriteLine($"{userName}, бот заметил что ты написал: {text}");
+        string text = cmd.Length > 5 ? cmd.Substring(5).TrimStart() : "";
+        Console.WriteLine($"{userName}, ты написал: {text}\n");
     }
-
-    // адд таск
 
     static void AddTaskCommand()
     {
-        Console.Write("Введите описание задачи: ");
-        string? task = Console.ReadLine();
-
-        if (string.IsNullOrWhiteSpace(task))
+        if (tasks.Count >= MaxTaskCount)
         {
-            Console.WriteLine("Задача не может быть пустой!");
+            Console.WriteLine($"Превышено максимальное количество задач равное {MaxTaskCount}!\n");
             return;
         }
 
-        tasks.Add(task.Trim());
-        Console.WriteLine($"Задача добавлена!");
+        Console.Write("Описание задачи: ");
+        string? raw = Console.ReadLine();
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            Console.WriteLine("Поле \"Описание задачи\" не может быть пустым!\n");
+            return;
+        }
+
+        string task = raw.Trim();
+
+        if (task.Length > MaxTaskLength)
+        {
+            Console.WriteLine($"Длина задачи ({task.Length}) превышает максимально допустимое значение ({MaxTaskLength})!\n");
+            return;
+        }
+
+        if (tasks.Exists(t => t.Equals(task, StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine("Такая задача уже существует! Дубликаты запрещены.\n");
+            return;
+        }
+
+        tasks.Add(task);
+        Console.WriteLine($"Задача добавлена! [{tasks.Count}/{MaxTaskCount}]\n");
     }
-
-
-
-
-    /// шоутаск 
-
-
 
     static void ShowTasksCommand()
     {
         if (tasks.Count == 0)
         {
-            Console.WriteLine("Список задач пуст :(");
+            Console.WriteLine("Список задач пуст.\n");
             return;
         }
 
-        Console.WriteLine("Ваши задачи:");
+        Console.WriteLine($"Задачи ({tasks.Count}/{MaxTaskCount}):");
         for (int i = 0; i < tasks.Count; i++)
-        {
-            Console.WriteLine($"{i + i + 1}. {tasks[i]}");
-        }
+            Console.WriteLine($"  {i + 1,2}. {tasks[i]}");
+        Console.WriteLine();
     }
-
-    // римув
-
-
 
     static void RemoveTaskCommand()
     {
         if (tasks.Count == 0)
         {
-            Console.WriteLine("Нет задач для удаления.");
+            Console.WriteLine("Нет задач для удаления.\n");
             return;
         }
 
-        ShowTasksCommand(); // оно?
+        ShowTasksCommand();
+        int num = ParseAndValidateInt("Номер задачи для удаления: ", 1, tasks.Count);
 
-        Console.Write("Введите номер задачи для удаления: ");
-        if (!int.TryParse(Console.ReadLine(), out int number) ||
-            number < 1 || number > tasks.Count)
-        {
-            Console.WriteLine("Некорректный номер задачи.");
-            return;
-        }
-
-        string removedTask = tasks[number - 1];
-        tasks.RemoveAt(number - 1);
-        Console.WriteLine($"Задача \"{removedTask}\" успешно удалена.");
+        string removed = tasks[num - 1];
+        tasks.RemoveAt(num - 1);
+        Console.WriteLine($"Удалена задача: {removed}\n");
     }
 }
