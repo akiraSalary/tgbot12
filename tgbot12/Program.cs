@@ -1,37 +1,66 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
-//  новые исключения 
-public class TaskCountLimitException : Exception
+// class todouser
+
+public class ToDoUser
 {
-    public TaskCountLimitException(int taskCountLimit)
-        : base($"Превышено максимальное количество задач равное {taskCountLimit}") { }
+    public Guid UserId { get; init; } = Guid.NewGuid();  //newid
+    public string TelegramUserName { get; init; } = string.Empty;  //имя
+    public DateTime RegisteredAt { get; init; } = DateTime.UtcNow;  // время регистрации
+
+    // коструктор todouser
+    public ToDoUser(string telegramUserName)
+    {
+        TelegramUserName = telegramUserName;
+    }
+}
+// todoitem(enum)
+public enum ToDoItemState
+{
+    Active,
+    Completed                                 //active i completed
 }
 
-public class TaskLengthLimitException : Exception
+public class ToDoItem               //todoitem class
 {
-    public TaskLengthLimitException(int taskLengthLimit, int tasklLength)
-        : base($"Длина задачи ({tasklLength}) превышает максимально допустимое значение ({taskLengthLimit})") { }
+    public Guid Id { get; init; } = Guid.NewGuid();        //обращается в id
+    public ToDoUser User { get; init; } = null!;            // todouser
+    public string Name { get; init; } = string.Empty;              //имя
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;              //время создания
+    public ToDoItemState State { get; private set; } = ToDoItemState.Active;        // стейт выполнения
+    public DateTime? StateChangedAt { get; private set; }                // дата смены стейта
+
+    // коструктор для пункта 2
+    public ToDoItem(ToDoUser user, string name)
+    {
+        User = user;
+        Name = name;
+    }
+
+    // для работы /completetask
+    public void Complete()
+    {
+        State = ToDoItemState.Completed;
+        StateChangedAt = DateTime.UtcNow;
+    }
 }
 
-public class DuplicateTaskException : Exception
-{
-    public DuplicateTaskException(string taskText)             //duplication!!!!!!
-        : base($"Задача \"{taskText}\" уже существует!") { }
-}
 
 class Program
 {
-    static string userName = "";
-    static bool isStarted = false;
+    static ToDoUser? currentUser = null;
     static bool isRun = true;
+
     static int MaxTaskCount = 10;
     static int MaxTaskLength = 100;
-    static List<string> tasks = new List<string>();
+
+    static readonly List<ToDoItem> tasks = new();
 
     static void Main(string[] args)
     {
-        Console.Title = "тг бот хехеехеххеехехех";
+        Console.Title = "Тг ботик хех";
 
         try
         {
@@ -40,8 +69,7 @@ class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\nОшибка при запуске: {ex.Message}");
-            Console.WriteLine("Программа будет завершена.");
+            Console.WriteLine($"\nОшибка запуска: {ex.Message}");
         }
         finally
         {
@@ -60,185 +88,296 @@ class Program
         Console.WriteLine($"\nЛимиты выставлены: {MaxTaskCount} задач по {MaxTaskLength} символов\n");
     }
 
-    // новый цикл по try-catch
     static void RunBot()
     {
-        Console.WriteLine("Это консольный тг бот для задачек");
-        Console.WriteLine("Доступные команды: /start /help /info /echo /addtask /showtasks /removetask /exit\n");
+        Console.WriteLine("Это консольный тг бот напоминалка!");
+        Console.WriteLine("Доступные команды: /start /help /info /echo /addtask /showtasks /showalltasks /completetask /removetask /exit\n");
 
         while (isRun)
         {
-            try
-            {
-                Console.Write("Команда: ");
-                string? input = Console.ReadLine();
+            Console.Write("Команда: ");
+            string? input = Console.ReadLine();
 
-                if (input is null)
-                {
+            if (input is null)
+            {
+                isRun = false;
+                continue;
+            }
+
+            input = input.Trim();
+            if (string.IsNullOrWhiteSpace(input)) continue;
+
+            switch (input.ToLower())
+            {
+                case "/start":
+                    StartCommand();
+                    break;
+
+                case "/exit":
                     isRun = false;
-                    continue;
-                }
+                    Console.WriteLine($"До свидания, {(currentUser?.TelegramUserName ?? "незнакомец")}!");
+                    break;
 
-                input = input.Trim();
-                if (string.IsNullOrWhiteSpace(input)) continue;
+                case "/help":
+                    HelpCommand();
+                    break;
 
-                switch (input.ToLower())
-                {
-                    case "/start":
-                        StartCommand();
-                        break;
-                    case "/exit":
-                        isRun = false;
-                        Console.WriteLine($"До свидания, {userName}!");
-                        break;
-                    case "/help":
-                        HelpCommand();
-                        break;
-                    case "/info":
-                        InfoCommand();
-                        break;
-                    default:
-                        if (!isStarted)
-                            Console.WriteLine("Сначала выполните /start\n");
-                        else if (input.StartsWith("/echo", StringComparison.OrdinalIgnoreCase))
-                            EchoCommand(input);
-                        else if (input.Equals("/addtask", StringComparison.OrdinalIgnoreCase))
-                            AddTaskCommand();
-                        else if (input.Equals("/showtasks", StringComparison.OrdinalIgnoreCase))
-                            ShowTasksCommand();
-                        else if (input.Equals("/removetask", StringComparison.OrdinalIgnoreCase))
-                            RemoveTaskCommand();
-                        else
-                            Console.WriteLine("Неизвестная команда. Введите /help\n");
-                        break;
-                }
-            }
-            // тут catche, вроде даже работающий
-            catch (TaskCountLimitException ex)
-            {
-                Console.WriteLine($"Ошибка: {ex.Message}\n");
-            }
-            catch (TaskLengthLimitException ex)
-            {
-                Console.WriteLine($"Ошибка: {ex.Message}\n");
-            }
-            catch (DuplicateTaskException ex)
-            {
-                Console.WriteLine($"Ошибка: {ex.Message}\n");
-            }
-            catch (ArgumentException ex)
-            {
-                Console.WriteLine($"Ошибка ввода: {ex.Message}\n");
+                case "/info":
+                    InfoCommand();
+                    break;
+
+                case "/echo":
+                    EchoCommand(input[5..].Trim());
+                    break;
+
+                case "/addtask":
+                    AddTaskCommand();
+                    break;
+
+                case "/showtasks":
+                    ShowTasksCommand();           // теперь выводит только ToDoItemState.Active
+                    break;
+
+                case "/showalltasks":
+                    ShowAllTasksCommand();        // все задачи (выводить с ними стейт)
+                    break;
+
+                case "/completetask":
+                    CompleteTaskCommand();
+                    break;
+
+                case "/removetask":
+                    RemoveTaskCommand();
+                    break;
+
+                default:
+                    Console.WriteLine("Неизвестная команда. /help — список команд\n");
+                    break;
             }
         }
     }
 
- 
-    static int ParseAndValidateInt(string prompt, int min, int max)      //parse теперь throw arguments
+    // модуль валидации
+    static int ParseAndValidateInt(string prompt, int min, int max)
     {
-        Console.Write(prompt);
-        if (int.TryParse(Console.ReadLine(), out int value) && value >= min && value <= max)
-            return value;
-
-        throw new ArgumentException($"Некорректное значение. Требуется число от {min} до {max}.");
-    }
-
-    static string ValidateString(string? input, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            throw new ArgumentException($"Поле \"{fieldName}\" не может пустовать.");
-        return input.Trim();
-    }
-
-     // подблок commands
-    static void StartCommand()
-    {
-        Console.Write("Введите ваше имя: ");
-        try
+        while (true)
         {
-            userName = ValidateString(Console.ReadLine(), "Имя");
-            isStarted = true;
-            Console.WriteLine($"Привет, {userName}!\n");
+            Console.Write(prompt);
+            if (int.TryParse(Console.ReadLine(), out int value) && value >= min && value <= max)
+                return value;
+
+            Console.WriteLine($"ОШИБКА: Введите число от {min} до {max}!\n");
         }
-        catch (ArgumentException ex)
+    }
+
+    // commands
+    static void StartCommand()                       //start (new)
+    { 
+        if (currentUser != null)
         {
-            Console.WriteLine($"Ошибка: {ex.Message}\n");
+            Console.WriteLine($"Вы уже представились как {currentUser.TelegramUserName}\n");
+            return;
         }
+
+        Console.Write("Введите ваше Telegram-имя: ");
+        string? name = Console.ReadLine()?.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Console.WriteLine("Имя не может быть пустым!\n");
+            return;
+        }
+
+        currentUser = new ToDoUser(name);
+        Console.WriteLine($"Привет, @{currentUser.TelegramUserName}! Ваш ID (ID: {currentUser.UserId})\n");
     }
 
-    static void HelpCommand()          //help 
+    static void HelpCommand()             //help
     {
-        Console.WriteLine($"\n{userName}, команды:");
-        Console.WriteLine("/start      — представиться");
-        Console.WriteLine("/help       — эта справка");
-        Console.WriteLine("/info       — информация");
-        Console.WriteLine("/echo <текст> — повторить");
-        Console.WriteLine("/addtask    — добавить задачу");
-        Console.WriteLine("/showtasks  — показать задачи");
-        Console.WriteLine("/removetask — удалить задачу");
-        Console.WriteLine("/exit       — выход\n");
+        Console.WriteLine($"\nКоманды для @{currentUser?.TelegramUserName ?? "гостя"}:");
+        Console.WriteLine("/start          — представиться");
+        Console.WriteLine("/help           — эта справка");
+        Console.WriteLine("/info           — информация");
+        Console.WriteLine("/echo <текст>   — повторить");
+        Console.WriteLine("/addtask        — добавить задачу");
+        Console.WriteLine("/showtasks      — активные задачи");
+        Console.WriteLine("/showalltasks   — все задачи");
+        Console.WriteLine("/completetask   — завершить задачу");
+        Console.WriteLine("/removetask     — удалить задачу");
+        Console.WriteLine("/exit           — выход\n");
     }
 
-    static void InfoCommand()          //info 
+    static void InfoCommand()                            //info
     {
-        Console.WriteLine($"\nИнформация о боте для {userName}:");
-        Console.WriteLine($"Пользователь: {userName}");
+        Console.WriteLine($"\nИнформация:");
+        Console.WriteLine($"Пользователь: @{currentUser?.TelegramUserName ?? "неизвестен"}");
+        Console.WriteLine($"ID: {currentUser?.UserId}");
+        Console.WriteLine($"Зарегистрирован: {currentUser?.RegisteredAt:dd.MM.yyyy HH:mm:ss}");
         Console.WriteLine($"Лимит задач: {MaxTaskCount}");
         Console.WriteLine($"Лимит символов: {MaxTaskLength}\n");
         Console.WriteLine("Дата создания: 17.11.2025");
-        Console.WriteLine("Версия: 1.1.1");
-        Console.WriteLine("Обновлена до актуальной версии: 09.12.2025");
+        Console.WriteLine("Версия: 1.2.0");
+        Console.WriteLine("Обновлена до актуальной версии: 12.12.2025");
     }
 
-    static void EchoCommand(string cmd)                    //echo
+    static void EchoCommand(string text)                    //echo 
     {
-        string text = cmd.Length > 5 ? cmd.Substring(5).TrimStart() : "";
-        Console.WriteLine($"{userName}, бот увидел твой текст: {text}\n");
+        Console.WriteLine($"{currentUser?.TelegramUserName ?? "Гость"}, ты написал: {text}\n");
     }
 
-    
-    static void AddTaskCommand()                     // addtask с исключениями
+    static void AddTaskCommand()                 //addtask
     {
-        if (tasks.Count >= MaxTaskCount)
-            throw new TaskCountLimitException(MaxTaskCount);
-
-        Console.Write("Описание задачи: ");
-        string task = ValidateString(Console.ReadLine(), "Описание задачи");
-
-        if (task.Length > MaxTaskLength)
-            throw new TaskLengthLimitException(MaxTaskLength, task.Length);
-
-        if (tasks.Contains(task, StringComparer.OrdinalIgnoreCase))
-            throw new DuplicateTaskException(task);
-
-        tasks.Add(task);
-        Console.WriteLine($"Задача добавлена! [{tasks.Count}/{MaxTaskCount}]\n");
-    }
-
-    static void ShowTasksCommand()               //show
-    {
-        if (tasks.Count == 0)
+        if (currentUser == null)
         {
-            Console.WriteLine("Список задач пуст.\n");
+            Console.WriteLine("Сначала выполните /start\n");
             return;
         }
-        Console.WriteLine($"Задачи ({tasks.Count}/{MaxTaskCount}):");
-        for (int i = 0; i < tasks.Count; i++)
-            Console.WriteLine($" {i + 1,2}. {tasks[i]}");
+
+        if (tasks.Count(t => t.User.UserId == currentUser.UserId && t.State == ToDoItemState.Active) >= MaxTaskCount)
+        {
+            Console.WriteLine($"Превышено максимальное количество активных задач ({MaxTaskCount})\n");
+            return;
+        }
+
+        Console.Write("Описание задачи: ");
+        string? raw = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            Console.WriteLine("Описание не может быть пустым!\n");
+            return;
+        }
+
+        string name = raw.Trim();
+        if (name.Length > MaxTaskLength)
+        {
+            Console.WriteLine($"Длина задачи ({name.Length}) превышает лимит ({MaxTaskLength})\n");
+            return;
+        }
+
+        if (tasks.Any(t => t.User.UserId == currentUser.UserId &&
+                           t.State == ToDoItemState.Active &&
+                           t.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine("Такая активная задача уже существует!\n");
+            return;
+        }
+
+        var item = new ToDoItem(currentUser, name);
+        tasks.Add(item);
+        Console.WriteLine($"Задача добавлена! Активных: {tasks.Count(t => t.State == ToDoItemState.Active)}\n");
+    }
+
+  
+    static void ShowTasksCommand()         //showtask вывод по примеру id все дела
+    {
+        if (currentUser == null)
+        {
+            Console.WriteLine("Сначала /start\n");
+            return;
+        }
+
+        var active = tasks.Where(t => t.User.UserId == currentUser.UserId && t.State == ToDoItemState.Active).ToList();
+
+        if (!active.Any())
+        {
+            Console.WriteLine("Активных задач нет.\n");
+            return;
+        }
+
+        Console.WriteLine($"Активные задачи ({active.Count}):");
+        foreach (var t in active)
+        {
+            Console.WriteLine($"{t.Name} - {t.CreatedAt:dd.MM.yyyy HH:mm:ss} - {t.Id}");
+        }
         Console.WriteLine();
     }
 
-    static void RemoveTaskCommand()            //remove
+           
+    static void ShowAllTasksCommand()            //showalltask - все задачи (new command WW)
     {
-        if (tasks.Count == 0)
+        if (currentUser == null)
         {
-            Console.WriteLine("Нет задач для удаления.\n");
+            Console.WriteLine("Сначала /start\n");
             return;
         }
-        ShowTasksCommand();
-        int num = ParseAndValidateInt("Номер задачи для удаления: ", 1, tasks.Count);
-        string removed = tasks[num - 1];
-        tasks.RemoveAt(num - 1);
-        Console.WriteLine($"Удалена задача: {removed}\n");
+
+        var userTasks = tasks.Where(t => t.User.UserId == currentUser.UserId).ToList();
+
+        if (!userTasks.Any())
+        {
+            Console.WriteLine("У вас нет задач.\n");
+            return;
+        }
+
+        Console.WriteLine($"Все задачи ({userTasks.Count}):");
+        foreach (var t in userTasks)
+        {
+            string state = t.State == ToDoItemState.Active ? "(Active)" : "(Completed)";
+            Console.WriteLine($"{t.Name} - {t.CreatedAt:dd.MM.yyyy HH:mm:ss} {state} - {t.Id}");
+        }
+        Console.WriteLine();
+    }
+
+    
+    static void CompleteTaskCommand()           //completetask - выполнение задачи и стейт (new command WWW)
+    {
+        if (currentUser == null)
+        {
+            Console.WriteLine("Сначала /start\n");
+            return;
+        }
+
+        ShowTasksCommand(); // работает только с Active
+
+        Console.Write("Введите Id задачи для завершения: ");
+        string? idStr = Console.ReadLine();
+
+        if (!Guid.TryParse(idStr, out Guid id))
+        {
+            Console.WriteLine("Некорректный Id\n");
+            return;
+        }
+
+        var task = tasks.FirstOrDefault(t => t.Id == id && t.User.UserId == currentUser.UserId && t.State == ToDoItemState.Active);
+
+        if (task == null)
+        {
+            Console.WriteLine("Задача не найдена или уже завершена\n");
+            return;
+        }
+
+        task.Complete();
+        Console.WriteLine($"/completetask {task.Id}");
+        Console.WriteLine("Задача завершена!\n");
+    }
+
+    static void RemoveTaskCommand()              //removetask
+    {
+        if (currentUser == null)
+        {
+            Console.WriteLine("Сначала /start\n");
+            return;
+        }
+
+        ShowAllTasksCommand();            
+
+        Console.Write("Введите Id задачи для удаления: ");
+        string? idStr = Console.ReadLine();
+
+        if (!Guid.TryParse(idStr, out Guid id))
+        {
+            Console.WriteLine("Некорректный Id\n");
+            return;
+        }
+
+        var task = tasks.FirstOrDefault(t => t.Id == id && t.User.UserId == currentUser.UserId);
+        if (task == null)
+        {
+            Console.WriteLine("Задача не найдена\n");
+            return;
+        }
+
+        tasks.Remove(task);
+        Console.WriteLine("Задача удалена\n");
     }
 }
