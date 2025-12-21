@@ -376,7 +376,7 @@ class Program
             Console.WriteLine("Задача не найдена\n");
             return;
         }
-
+                   // only on test
         tasks.Remove(task);
         Console.WriteLine("Задача удалена\n");
     }
