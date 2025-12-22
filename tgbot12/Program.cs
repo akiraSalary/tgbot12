@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Otus.ToDoList.ConsoleBot; // ← школьная библиотека
+using Otus.ToDoList.ConsoleBot; // new lib
 using Otus.ToDoList.ConsoleBot.Types;
 
-// === 1. ToDoUser — с TelegramUserId ===
+// todo user nd tg user id
 public class ToDoUser
 {
     public Guid UserId { get; init; } = Guid.NewGuid();
@@ -21,7 +21,7 @@ public class ToDoUser
     }
 }
 
-// === ToDoItem ===
+// новый item
 public enum ToDoItemState
 {
     Active,
@@ -50,7 +50,7 @@ public class ToDoItem
     }
 }
 
-// === Сервисы ===
+// user services
 public interface IUserService
 {
     ToDoUser RegisterUser(long telegramUserId, string telegramUserName);
@@ -127,7 +127,7 @@ public class ToDoService : IToDoService
     }
 }
 
-// === UpdateHandler ===
+// update handlier с ошибкой 
 public class UpdateHandler : IUpdateHandler
 {
     private readonly IUserService _userService;
