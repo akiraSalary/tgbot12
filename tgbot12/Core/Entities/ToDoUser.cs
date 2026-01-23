@@ -1,13 +1,18 @@
+using System;
 
-public class ToDoUser
+namespace ToDoListBot.Core.Entities
 {
-    public Guid UserId { get; init; } = Guid.NewGuid();
-    public long TelegramUserId { get; init; }
-    public string TelegramUserName { get; init; } = string.Empty;
-    public DateTime RegisteredAt { get; init; } = DateTime.UtcNow;
-    public ToDoUser(long telegramUserId, string telegramUserName)
+
+    public class ToDoUser
     {
-        TelegramUserId = telegramUserId;
-        TelegramUserName = telegramUserName ?? "Unknown";
+        public Guid UserId { get; init; } = Guid.NewGuid();
+        public long TelegramUserId { get; init; }
+        public string TelegramUserName { get; init; } = string.Empty;
+        public DateTime RegisteredAt { get; init; } = DateTime.UtcNow;
+        public ToDoUser(long telegramUserId, string telegramUserName)
+        {
+            TelegramUserId = telegramUserId;
+            TelegramUserName = telegramUserName ?? "Unknown";
+        }
     }
 }

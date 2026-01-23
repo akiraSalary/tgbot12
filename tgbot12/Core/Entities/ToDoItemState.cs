@@ -1,5 +1,12 @@
-public enum ToDoItemState
+using System;
+
+namespace ToDoListBot.Core.Entities
 {
-    Active,
-    Completed
+
+
+    public enum ToDoItemState
+    {
+        Active,
+        Completed
+    }
 }

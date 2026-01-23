@@ -1,4 +1,9 @@
+using System;
+
+namespace ToDoListBot.Core.Entities;
+
 public class ToDoItem
+
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public ToDoUser User { get; init; } = null!;

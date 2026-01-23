@@ -1,6 +1,13 @@
-public interface IUserRepository
+using System;
+using System.Collections.Generic;
+using ToDoListBot.Core.Entities;
+
+namespace ToDoListBot.Core.DataAccess
 {
-    ToDoUser? GetUser(Guid userId);
-    ToDoUser? GetByTelegramUserId(long telegramUserId);
-    void Add(ToDoUser user);
+    public interface IUserRepository
+    {
+        ToDoUser? GetUser(Guid userId);
+        ToDoUser? GetByTelegramUserId(long telegramUserId);
+        void Add(ToDoUser user);
+    }
 }

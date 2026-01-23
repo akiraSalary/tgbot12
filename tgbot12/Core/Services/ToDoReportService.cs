@@ -1,19 +1,27 @@
-public class ToDoReportService : IToDoReportService
+using System;
+
+using ToDoListBot.Core.DataAccess;        // репозитории
+using ToDoListBot.Core.Entities;          // ToDoUser, ToDoItem
+
+namespace ToDoListBot.Core.Services
 {
-    private readonly IToDoRepository _repository;
-
-    public ToDoReportService(IToDoRepository repository)
+    public class ToDoReportService : IToDoReportService
     {
-        _repository = repository;
-    }
+        private readonly IToDoRepository _repository;
 
-    public (int total, int completed, int active, DateTime generatedAt) GetUserStats(Guid userId)
-    {
-        var all = _repository.GetAllByUserId(userId);
-        int total = all.Count;
-        int active = _repository.CountActive(userId);
-        int completed = total - active;
+        public ToDoReportService(IToDoRepository repository)
+        {
+            _repository = repository;
+        }
 
-        return (total, completed, active, DateTime.UtcNow);
+        public (int total, int completed, int active, DateTime generatedAt) GetUserStats(Guid userId)
+        {
+            var all = _repository.GetAllByUserId(userId);
+            int total = all.Count;
+            int active = _repository.CountActive(userId);
+            int completed = total - active;
+
+            return (total, completed, active, DateTime.UtcNow);
+        }
     }
 }
