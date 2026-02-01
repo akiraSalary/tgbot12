@@ -1,7 +1,8 @@
-using System;
 
-using ToDoListBot.Core.DataAccess;        // репозитории
-using ToDoListBot.Core.Entities;          // ToDoUser, ToDoItem
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using ToDoListBot.Core.DataAccess;
 
 namespace ToDoListBot.Core.Services
 {
@@ -14,13 +15,12 @@ namespace ToDoListBot.Core.Services
             _repository = repository;
         }
 
-        public (int total, int completed, int active, DateTime generatedAt) GetUserStats(Guid userId)
+        public async Task<(int total, int completed, int active, DateTime generatedAt)> GetUserStatsAsync(Guid userId, CancellationToken ct = default)
         {
-            var all = _repository.GetAllByUserId(userId);
+            var all = await _repository.GetAllByUserIdAsync(userId, ct);
             int total = all.Count;
-            int active = _repository.CountActive(userId);
+            int active = await _repository.CountActiveAsync(userId, ct);
             int completed = total - active;
-
             return (total, completed, active, DateTime.UtcNow);
         }
     }

@@ -1,13 +1,12 @@
-using System;
-
-using ToDoListBot.Core.DataAccess;        // репозитории
-using ToDoListBot.Core.Entities;          // ToDoUser, ToDoItem
+using System.Threading;
+using System.Threading.Tasks;
+using ToDoListBot.Core.Entities;
 
 namespace ToDoListBot.Core.Services
 {
     public interface IUserService
     {
-        ToDoUser RegisterUser(long telegramUserId, string telegramUserName);
-        ToDoUser? GetUser(long telegramUserId);
+        Task<ToDoUser> RegisterUserAsync(long telegramUserId, string telegramUserName, CancellationToken ct = default);
+        Task<ToDoUser?> GetUserAsync(long telegramUserId, CancellationToken ct = default);
     }
 }

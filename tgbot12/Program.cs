@@ -1,9 +1,8 @@
 ﻿using System;
-
+using System.Threading;
+using System.Threading.Tasks;
 
 using Otus.ToDoList.ConsoleBot;
-using Otus.ToDoList.ConsoleBot.Types;
-
 
 using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.Services;
@@ -14,7 +13,7 @@ namespace ToDoListBot
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.Title = "бот еххехехеехехехехехеехеехеххехехехеех";
 
@@ -33,10 +32,29 @@ namespace ToDoListBot
                 maxTaskLength: 100);
 
             var botClient = new ConsoleBotClient();
-            botClient.StartReceiving(handler);
 
-            Console.WriteLine("Бот запущен. Вводите сообщения как в Telegram...");
-            Console.ReadLine();
+            using var cts = new CancellationTokenSource();
+
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
+
+            Console.WriteLine("Бот запущен. Вводите сообщения как в Telegram... (Ctrl+C для выхода)");
+
+            botClient.StartReceiving(handler, cts.Token);
+
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // нормальный выход по Ctrl+C
+            }
+
+            Console.WriteLine("Бот остановлен.");
         }
     }
 }

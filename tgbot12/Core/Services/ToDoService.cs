@@ -1,7 +1,10 @@
 using System;
-
-using ToDoListBot.Core.DataAccess;        // репозитории
-using ToDoListBot.Core.Entities;    // ToDoUser, ToDoItem
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using ToDoListBot.Core.DataAccess;
+using ToDoListBot.Core.Entities;
 using ToDoListBot.Core.Exceptions;
 
 namespace ToDoListBot.Core.Services
@@ -19,55 +22,57 @@ namespace ToDoListBot.Core.Services
             _maxTaskLength = maxTaskLength;
         }
 
-        public IReadOnlyList<ToDoItem> GetAllByUserId(Guid userId) =>
-            _repository.GetAllByUserId(userId);
+        public Task<IReadOnlyList<ToDoItem>> GetAllByUserIdAsync(Guid userId, CancellationToken ct = default)
+            => _repository.GetAllByUserIdAsync(userId, ct);
 
-        public IReadOnlyList<ToDoItem> GetActiveByUserId(Guid userId) =>
-            _repository.GetActiveByUserId(userId);
+        public Task<IReadOnlyList<ToDoItem>> GetActiveByUserIdAsync(Guid userId, CancellationToken ct = default)
+            => _repository.GetActiveByUserIdAsync(userId, ct);
 
-        public ToDoItem AddTask(ToDoUser user, string name)
+        public async Task<ToDoItem> AddTaskAsync(ToDoUser user, string name, CancellationToken ct = default)
         {
             name = name.Trim();
+
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Название задачи не может быть пустым");
 
             if (name.Length > _maxTaskLength)
                 throw new TaskLengthLimitException(name.Length, _maxTaskLength);
 
-            var activeCount = _repository.CountActive(user.UserId);
+            var activeCount = await _repository.CountActiveAsync(user.UserId, ct);
             if (activeCount >= _maxTaskCount)
                 throw new TaskCountLimitException(_maxTaskCount);
 
-            if (_repository.ExistsByName(user.UserId, name))
+            if (await _repository.ExistsByNameAsync(user.UserId, name, ct))
                 throw new InvalidOperationException("Такая активная задача уже существует");
 
             var task = new ToDoItem(user, name);
-            _repository.Add(task);
+            await _repository.AddAsync(task, ct);
             return task;
         }
 
-        public void MarkCompleted(Guid taskId)
+        public async Task MarkCompletedAsync(Guid taskId, CancellationToken ct = default)
         {
-            var task = _repository.Get(taskId)
+            var task = await _repository.GetAsync(taskId, ct)
                 ?? throw new KeyNotFoundException("Задача не найдена");
 
             task.Complete();
-            _repository.Update(task);
+            await _repository.UpdateAsync(task, ct);
         }
 
-        public void Delete(Guid taskId)
+        public async Task DeleteAsync(Guid taskId, CancellationToken ct = default)
         {
-            if (_repository.Get(taskId) == null)
+            var task = await _repository.GetAsync(taskId, ct);
+            if (task == null)
                 throw new KeyNotFoundException("Задача не найдена");
 
-            _repository.Delete(taskId);
+            await _repository.DeleteAsync(taskId, ct);
         }
 
-        public IReadOnlyList<ToDoItem> Find(ToDoUser user, string namePrefix)
+        public Task<IReadOnlyList<ToDoItem>> FindAsync(ToDoUser user, string namePrefix, CancellationToken ct = default)
         {
-            return _repository.Find(user.UserId, t =>
+            return _repository.FindAsync(user.UserId, t =>
                 t.State == ToDoItemState.Active &&
-                t.Name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase));
+                t.Name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase), ct);
         }
     }
 }

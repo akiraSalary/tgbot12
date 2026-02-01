@@ -1,12 +1,12 @@
-using System;
 
-using ToDoListBot.Core.DataAccess;        // репозитории
-using ToDoListBot.Core.Entities;          // ToDoUser, ToDoItem
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ToDoListBot.Core.Services
 {
     public interface IToDoReportService
     {
-        (int total, int completed, int active, DateTime generatedAt) GetUserStats(Guid userId);
+        Task<(int total, int completed, int active, DateTime generatedAt)> GetUserStatsAsync(Guid userId, CancellationToken ct = default);
     }
 }

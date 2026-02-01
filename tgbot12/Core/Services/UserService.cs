@@ -1,7 +1,7 @@
-using System;
-
-using ToDoListBot.Core.DataAccess;        // репозитории
-using ToDoListBot.Core.Entities;          // ToDoUser, ToDoItem
+using System.Threading;
+using System.Threading.Tasks;
+using ToDoListBot.Core.DataAccess;
+using ToDoListBot.Core.Entities;
 
 namespace ToDoListBot.Core.Services
 {
@@ -14,17 +14,19 @@ namespace ToDoListBot.Core.Services
             _repository = repository;
         }
 
-        public ToDoUser RegisterUser(long telegramUserId, string telegramUserName)
+        public async Task<ToDoUser> RegisterUserAsync(long telegramUserId, string telegramUserName, CancellationToken ct = default)
         {
-            var existing = _repository.GetByTelegramUserId(telegramUserId);
+            var existing = await _repository.GetByTelegramUserIdAsync(telegramUserId, ct);
             if (existing != null) return existing;
 
-            var user = new ToDoUser(telegramUserId, telegramUserName);
-            _repository.Add(user);
+            var user = new ToDoUser(telegramUserId, telegramUserName ?? "Unknown");
+            await _repository.AddAsync(user, ct);
             return user;
         }
 
-        public ToDoUser? GetUser(long telegramUserId) =>
-            _repository.GetByTelegramUserId(telegramUserId);
+        public Task<ToDoUser?> GetUserAsync(long telegramUserId, CancellationToken ct = default)
+        {
+            return _repository.GetByTelegramUserIdAsync(telegramUserId, ct);
+        }
     }
 }
