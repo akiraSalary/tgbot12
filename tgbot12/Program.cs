@@ -51,7 +51,8 @@ namespace ToDoListBot
             }
             catch (OperationCanceledException)
             {
-                // нормальный выход по Ctrl+C
+                await handler.HandleErrorAsync(botClient, ex, CancellationToken.None);
+                Console.WriteLine("Бот остановлен по отмене (Ctrl+C).");
             }
 
             Console.WriteLine("Бот остановлен.");
