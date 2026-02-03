@@ -56,7 +56,7 @@ namespace ToDoListBot
             }
 
             Console.WriteLine("Бот остановлен.");
-        }                     //test 12123123132
+        }                     //test 1123
 
     }
 }
