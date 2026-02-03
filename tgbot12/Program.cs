@@ -38,10 +38,10 @@ namespace ToDoListBot
             Console.CancelKeyPress += (sender, e) =>
             {
                 e.Cancel = true;
-                cts.Cancel();
+                cts.Cancel();s
             };
 
-            Console.WriteLine("Бот запущен. Вводите сообщения как в Telegram. (Ctrl+C для выхода)");
+            Console.WriteLine("Бот запущен. Вводите сообщения как в Telegram... (Ctrl+C для выхода)");
 
             botClient.StartReceiving(handler, cts.Token);
 
