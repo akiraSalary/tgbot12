@@ -41,7 +41,7 @@ namespace ToDoListBot
                 cts.Cancel();
             };
 
-            Console.WriteLine("Бот запущен. Вводите сообщения как в Telegram... (Ctrl+C для выхода)");
+            Console.WriteLine("Бот запущен. Вводите сообщения как в Telegram. (Ctrl+C для выхода)");
 
             botClient.StartReceiving(handler, cts.Token);
 
