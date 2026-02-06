@@ -16,11 +16,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Otus.ToDoList.ConsoleBot\Otus.ToDoList.ConsoleBot.csproj" />
+    <Folder Include="TelegramBot\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="TelegramBot\" />
+    <PackageReference Include="Telegram.Bot" Version="22.8.1" />
   </ItemGroup>
 
 </Project>
