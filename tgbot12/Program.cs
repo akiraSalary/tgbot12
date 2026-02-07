@@ -109,7 +109,7 @@ namespace ToDoListBot
                 Console.ResetColor();
             }
 
-            Console.WriteLine("Программа завершена."); //123
+            Console.WriteLine("Программа завершена."); //12
         }
     }
 }
