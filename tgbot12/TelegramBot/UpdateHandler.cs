@@ -173,8 +173,8 @@ namespace ToDoListBot.TelegramBot
                 $"Лимит задач: {_maxTaskCount}\n" +
                 $"Лимит символов: {_maxTaskLength}\n"+
                 $"\nДата создания: 17.11.2025\n" +
-                $"Версия: 1.3.1\n" +
-                $"Обновлена до актуальной версии: 26.12.2025\n";
+                $"Версия: 1.6.1\n" +
+                $"Обновлена до актуальной версии: 08.02.2026\n";
 
             return SendMessageHttpAsync(chatId, msg, ct);
         }
