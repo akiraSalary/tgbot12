@@ -1,4 +1,4 @@
-п»їusing System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,43 +21,43 @@ namespace ToDoListBot
 
         static async Task Main(string[] args)
         {
-            Console.Title = "С‚Рі Р±РѕС‚ РєРѕРЅСЃРѕР»СЊ";
+            Console.Title = "тг бот консоль";
 
-            // Р§РёС‚Р°РµРј С‚РѕРєРµРЅ РёР· РїРµСЂРµРјРµРЅРЅРѕР№ РѕРєСЂСѓР¶РµРЅРёСЏ TELEGRAM_BOT_TOKEN
+            // Читаем токен из переменной окружения TELEGRAM_BOT_TOKEN
             string? token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
             if (string.IsNullOrWhiteSpace(token))
             {
-                Console.WriteLine("РџРµСЂРµРјРµРЅРЅР°СЏ РѕРєСЂСѓР¶РµРЅРёСЏ TELEGRAM_BOT_TOKEN РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅР°.");
-                Console.Write("Р’РІРµРґРёС‚Рµ С‚РѕРєРµРЅ Р±РѕС‚Р° (РІРІРѕРґ РЅРµ Р±СѓРґРµС‚ СЃРѕС…СЂР°РЅС‘РЅ РІ РєРѕРґРµ, С‚РѕР»СЊРєРѕ РґР»СЏ Р»РѕРєР°Р»СЊРЅРѕРіРѕ С‚РµСЃС‚Р°): ");
+                Console.WriteLine("Переменная окружения TELEGRAM_BOT_TOKEN не установлена.");
+                Console.Write("Введите токен бота (ввод не будет сохранён в коде, только для локального теста): ");
                 token = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(token))
                 {
-                    Console.WriteLine("РўРѕРєРµРЅ РЅРµ СѓРєР°Р·Р°РЅ. Р’С‹С…РѕРґ.");
+                    Console.WriteLine("Токен не указан. Выход.");
                     return;
                 }
             }
 
             _botClient = new TelegramBotClient(token!);
 
-            var me = await _botClient.GetMe();
-            Console.WriteLine($"Р‘РѕС‚ Р·Р°РїСѓС‰РµРЅ: @{me.Username} ({me.FirstName})");
+            var me = await _botClient.GetMeAsync();
+            Console.WriteLine($"Бот запущен: @{me.Username} ({me.FirstName})");
 
-            // РЈСЃС‚Р°РЅРѕРІРєР° РЅР°С‚РёРІРЅРѕРіРѕ РјРµРЅСЋ РєРѕРјР°РЅРґ
+            // Установка нативного меню команд
             var commands = new[]
             {
-                new BotCommand { Command = "start",   Description = "РќР°С‡Р°С‚СЊ СЂР°Р±РѕС‚Сѓ / Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ" },
-                new BotCommand { Command = "help",    Description = "РЎРїРёСЃРѕРє РєРѕРјР°РЅРґ Рё СЃРїСЂР°РІРєР°" },
-                new BotCommand { Command = "info",    Description = "РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РїРѕР»СЊР·РѕРІР°С‚РµР»Рµ Рё Р»РёРјРёС‚Р°С…" },
-                new BotCommand { Command = "addtask", Description = "Р”РѕР±Р°РІРёС‚СЊ РЅРѕРІСѓСЋ Р·Р°РґР°С‡Сѓ" },
-                new BotCommand { Command = "showtasks",   Description = "РџРѕРєР°Р·Р°С‚СЊ С‚РѕР»СЊРєРѕ Р°РєС‚РёРІРЅС‹Рµ Р·Р°РґР°С‡Рё" },
-                new BotCommand { Command = "showalltasks", Description = "РџРѕРєР°Р·Р°С‚СЊ РІСЃРµ Р·Р°РґР°С‡Рё" },
-                new BotCommand { Command = "completetask", Description = "Р—Р°РІРµСЂС€РёС‚СЊ Р·Р°РґР°С‡Сѓ РїРѕ ID" },
-                new BotCommand { Command = "removetask",   Description = "РЈРґР°Р»РёС‚СЊ Р·Р°РґР°С‡Сѓ РїРѕ ID" },
-                new BotCommand { Command = "report",  Description = "РЎС‚Р°С‚РёСЃС‚РёРєР° РїРѕ Р·Р°РґР°С‡Р°Рј" },
-                new BotCommand { Command = "find",    Description = "РџРѕРёСЃРє Р°РєС‚РёРІРЅС‹С… Р·Р°РґР°С‡ РїРѕ РїСЂРµС„РёРєСЃСѓ" }
+                new BotCommand { Command = "start",   Description = "Начать работу / зарегистрироваться" },
+                new BotCommand { Command = "help",    Description = "Список команд и справка" },
+                new BotCommand { Command = "info",    Description = "Информация о пользователе и лимитах" },
+                new BotCommand { Command = "addtask", Description = "Добавить новую задачу" },
+                new BotCommand { Command = "showtasks",   Description = "Показать только активные задачи" },
+                new BotCommand { Command = "showalltasks", Description = "Показать все задачи" },
+                new BotCommand { Command = "completetask", Description = "Завершить задачу по ID" },
+                new BotCommand { Command = "removetask",   Description = "Удалить задачу по ID" },
+                new BotCommand { Command = "report",  Description = "Статистика по задачам" },
+                new BotCommand { Command = "find",    Description = "Поиск активных задач по префиксу" }
             };
 
-            await _botClient.SetMyCommands(commands);
+            await _botClient.SetMyCommandsAsync(commands);
 
             var updateHandler = CreateUpdateHandler();
 
@@ -75,7 +75,7 @@ namespace ToDoListBot
                 receiverOptions,
                 cts.Token);
 
-            Console.WriteLine("РќР°Р¶РјРёС‚Рµ РєР»Р°РІРёС€Сѓ A РґР»СЏ РІС‹С…РѕРґР°...");
+            Console.WriteLine("Нажмите клавишу A для выхода...");
 
             while (!cts.Token.IsCancellationRequested)
             {
@@ -85,23 +85,23 @@ namespace ToDoListBot
                     if (char.ToLowerInvariant(key.KeyChar) == 'a')
                     {
                         cts.Cancel();
-                        Console.WriteLine("Р‘РѕС‚ РѕСЃС‚Р°РЅРѕРІР»РµРЅ РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј (A).");
+                        Console.WriteLine("Бот остановлен пользователем (A).");
                         break;
                     }
                     else
                     {
-                        Console.WriteLine($"Р‘РѕС‚: @{me.Username}");
+                        Console.WriteLine($"Бот: @{me.Username}");
                         Console.WriteLine($"ID: {me.Id}");
-                        Console.WriteLine($"РРјСЏ: {me.FirstName}");
-                        Console.WriteLine($"РњРѕР¶РЅРѕ РїРёСЃР°С‚СЊ РІ Telegram @{me.Username}");
-                        Console.WriteLine("РќР°Р¶РјРёС‚Рµ A РґР»СЏ РІС‹С…РѕРґР°...");
+                        Console.WriteLine($"Имя: {me.FirstName}");
+                        Console.WriteLine($"Можно писать в Telegram @{me.Username}");
+                        Console.WriteLine("Нажмите A для выхода...");
                     }
                 }
 
                 await Task.Delay(100, cts.Token);
             }
 
-            Console.WriteLine("РџСЂРѕРіСЂР°РјРјР° Р·Р°РІРµСЂС€РµРЅР°.");
+            Console.WriteLine("Программа завершена.");
             await Task.Delay(1500);
         }
 
