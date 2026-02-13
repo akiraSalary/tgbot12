@@ -23,7 +23,7 @@ namespace ToDoListBot
         {
             Console.Title = "тг бот консоль";
 
-            // Читаем токен из переменной окружения TELEGRAM_BOT_TOKEN
+            // из переменной
             string? token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
             if (string.IsNullOrWhiteSpace(token))
             {
