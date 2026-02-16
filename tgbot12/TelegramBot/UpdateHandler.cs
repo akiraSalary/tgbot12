@@ -197,8 +197,8 @@ namespace ToDoListBot.TelegramBot
                    $"Лимит задач: {_maxTaskCount}\n" +
                    $"Макс. длина: {_maxTaskLength} символов\n" +
                    $"Дата создания: 17.11.2025\n" +
-                   $"Последнее обновление: 13.02.2026\n" +
-                   $"Версия: 1.6.3";
+                   $"Последнее обновление: 16.02.2026\n" +
+                   $"Версия: 1.7.0";
         }
 
         // обработка команд currentUser
@@ -256,8 +256,7 @@ namespace ToDoListBot.TelegramBot
 
         private async Task HandleCompleteTaskAsync(Chat chat, string[] parts, CancellationToken ct)
         {
-            string input = parts[1].Trim().Replace("-", "");
-            if (input.Length != 32 || !Guid.TryParse(input, out Guid id))
+            if (parts.Length < 2 || !Guid.TryParse(parts[1], out var id))
             {
                 await SendWithKeyboardAsync(chat, "Использование: /completetask <id>", GetMainKeyboard(), ct);
                 return;
