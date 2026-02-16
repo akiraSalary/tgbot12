@@ -256,7 +256,8 @@ namespace ToDoListBot.TelegramBot
 
         private async Task HandleCompleteTaskAsync(Chat chat, string[] parts, CancellationToken ct)
         {
-            if (parts.Length < 2 || !Guid.TryParse(parts[1], out var id))
+            string input = parts[1].Trim().Replace("-", "");
+            if (input.Length != 32 || !Guid.TryParse(input, out Guid id))
             {
                 await SendWithKeyboardAsync(chat, "Использование: /completetask <id>", GetMainKeyboard(), ct);
                 return;

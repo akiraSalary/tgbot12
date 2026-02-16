@@ -23,13 +23,15 @@ namespace ToDoListBot
         {
             Console.Title = "тг бот консоль";
 
-            // из переменной
+         
             string? token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
+
             if (string.IsNullOrWhiteSpace(token))
             {
                 Console.WriteLine("Переменная окружения TELEGRAM_BOT_TOKEN не установлена.");
-                Console.Write("Введите токен бота (ввод не будет сохранён в коде, только для локального теста): ");
-                token = Console.ReadLine();
+                Console.Write("Введите токен бота (ввод не будет сохранён в коде, только для теста): ");
+                token = Console.ReadLine()?.Trim();
+
                 if (string.IsNullOrWhiteSpace(token))
                 {
                     Console.WriteLine("Токен не указан. Выход.");
@@ -37,12 +39,101 @@ namespace ToDoListBot
                 }
             }
 
-            _botClient = new TelegramBotClient(token!);
+            _botClient = new TelegramBotClient(token);
 
             var me = await _botClient.GetMe();
             Console.WriteLine($"Бот запущен: @{me.Username} ({me.FirstName})");
 
-            // Установка нативного меню команд
+           
+            await SetMyCommands();
+
+            
+            var updateHandler = CreateUpdateHandler();
+
+           
+            var receiverOptions = new ReceiverOptions
+            {
+                AllowedUpdates = Array.Empty<UpdateType>(), 
+                DropPendingUpdates = true 
+            };
+
+            using var cts = new CancellationTokenSource();
+
+            
+            _botClient.StartReceiving(
+                updateHandler.HandleUpdateAsync,
+                updateHandler.HandlePollingErrorAsync,
+                receiverOptions: receiverOptions,
+                cancellationToken: cts.Token);
+
+            Console.WriteLine("Нажмите клавишу A для выхода...");
+
+          
+            while (!cts.Token.IsCancellationRequested)
+            {
+                if (Console.KeyAvailable)
+                {
+                    var key = Console.ReadKey(intercept: true);
+                    if (char.ToLowerInvariant(key.KeyChar) == 'a')
+                    {
+                        cts.Cancel();
+                        Console.WriteLine("Бот остановлен пользователем (A).");
+                        break;
+                    }
+                    else
+                    {
+                      
+                        Console.WriteLine($"Бот: @{me.Username}");
+                        Console.WriteLine($"ID: {me.Id}");
+                        Console.WriteLine($"Имя: {me.FirstName}");
+                        Console.WriteLine($"Можно писать в Telegram: @{me.Username}");
+                        Console.WriteLine("Нажмите A для выхода...");
+                    }
+                }
+
+                await Task.Delay(100, cts.Token);
+            }
+
+            Console.WriteLine("Программа завершена.");
+            await Task.Delay(1500); 
+        }
+
+        private static UpdateHandler CreateUpdateHandler()
+        {
+            // 
+            string projectRoot = Directory.GetCurrentDirectory(); // 
+            string solutionRoot = Directory.GetParent(projectRoot)?.Parent?.Parent?.FullName ?? projectRoot; // 
+
+            string dataDir = Path.Combine(solutionRoot, "data");
+            string usersPath = Path.Combine(dataDir, "users");
+            string tasksPath = Path.Combine(dataDir, "tasks");
+
+            // 
+            Directory.CreateDirectory(dataDir);
+            Directory.CreateDirectory(usersPath);
+            Directory.CreateDirectory(tasksPath);
+
+            var userRepo = new FileUserRepository(usersPath);
+            var todoRepo = new FileToDoRepository(tasksPath);
+
+            var userService = new UserService(userRepo);
+            var todoService = new ToDoService(todoRepo, maxTaskCount: 10, maxTaskLength: 100);
+            var reportService = new ToDoReportService(todoRepo);
+
+           
+
+            return new UpdateHandler(
+                userService,
+                todoService,
+                reportService,
+                10,
+                100,
+                _botClient
+            );
+        }
+
+        private static async Task SetMyCommands()
+        {
             var commands = new[]
             {
                 new BotCommand { Command = "start",   Description = "Начать работу / зарегистрироваться" },
@@ -58,70 +149,6 @@ namespace ToDoListBot
             };
 
             await _botClient.SetMyCommands(commands);
-
-            var updateHandler = CreateUpdateHandler();
-
-            var receiverOptions = new ReceiverOptions
-            {
-                AllowedUpdates = Array.Empty<UpdateType>(),
-                DropPendingUpdates = true
-            };
-
-            using var cts = new CancellationTokenSource();
-
-            _botClient.StartReceiving(
-                updateHandler.HandleUpdateAsync,
-                updateHandler.HandlePollingErrorAsync,
-                receiverOptions,
-                cts.Token);
-
-            Console.WriteLine("Нажмите клавишу A для выхода...");
-
-            while (!cts.Token.IsCancellationRequested)
-            {
-                if (Console.KeyAvailable)
-                {
-                    var key = Console.ReadKey(intercept: true);
-                    if (char.ToLowerInvariant(key.KeyChar) == 'a')
-                    {
-                        cts.Cancel();
-                        Console.WriteLine("Бот остановлен пользователем (A).");
-                        break;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Бот: @{me.Username}");
-                        Console.WriteLine($"ID: {me.Id}");
-                        Console.WriteLine($"Имя: {me.FirstName}");
-                        Console.WriteLine($"Можно писать в Telegram @{me.Username}");
-                        Console.WriteLine("Нажмите A для выхода...");
-                    }
-                }
-
-                await Task.Delay(100, cts.Token);
-            }
-
-            Console.WriteLine("Программа завершена.");
-            await Task.Delay(1500);
-        }
-
-        private static UpdateHandler CreateUpdateHandler()
-        {
-            var userRepo = new InMemoryUserRepository();
-            var todoRepo = new InMemoryToDoRepository();
-
-            var userService = new UserService(userRepo);
-            var todoService = new ToDoService(todoRepo, maxTaskCount: 10, maxTaskLength: 100);
-            var reportService = new ToDoReportService(todoRepo);
-
-            return new UpdateHandler(
-                userService,
-                todoService,
-                reportService,
-                10,
-                100,
-                _botClient
-            );
         }
     }
 }
