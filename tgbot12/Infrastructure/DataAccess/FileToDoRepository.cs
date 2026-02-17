@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using ToDoListBot.Core.DataAccess;
@@ -15,17 +16,27 @@ namespace ToDoListBot.Infrastructure.DataAccess
         private readonly string _basePath;
         private readonly string _indexPath;
 
+        // Json type sh
+        private static readonly JsonSerializerOptions JsonOptions = new ()
+        {
+            Converters = { new JsonStringEnumConverter() },
+            WriteIndented = true,
+        };
+
         public FileToDoRepository(string basePath)
         {
             _basePath = Path.GetFullPath(basePath);
             _indexPath = Path.Combine(_basePath, "index.json");
 
+            // if none = create
             if (!Directory.Exists(_basePath))
                 Directory.CreateDirectory(_basePath);
 
-            // Если индекса нет — blank
+            // if none = blank
             if (!File.Exists(_indexPath))
+            {
                 SaveIndexAsync(new Dictionary<Guid, Guid>()).GetAwaiter().GetResult();
+            }
         }
 
         private async Task<Dictionary<Guid, Guid>> LoadIndexAsync(CancellationToken ct = default)
@@ -38,26 +49,31 @@ namespace ToDoListBot.Infrastructure.DataAccess
 
         private async Task SaveIndexAsync(Dictionary<Guid, Guid> index, CancellationToken ct = default)
         {
-            var json = JsonSerializer.Serialize(index);
+            var json = JsonSerializer.Serialize(index, JsonOptions);
             await File.WriteAllTextAsync(_indexPath, json, ct);
         }
-
-        private string GetUserFolder(Guid userId) => Path.Combine(_basePath, $"ToDoItems_{userId:N}");
 
         private string GetTaskFilePath(Guid taskId) => Path.Combine(_basePath, $"ToDoItem_{taskId:N}.json");
 
         public async Task<IReadOnlyList<ToDoItem>> GetAllByUserIdAsync(Guid userId, CancellationToken ct = default)
         {
-            var folder = GetUserFolder(userId);
-            if (!Directory.Exists(folder)) return Array.Empty<ToDoItem>();
+            var index = await LoadIndexAsync(ct);
 
-            var files = Directory.GetFiles(folder, "ToDoItem_*.json");
+            // new id source
+            var taskIds = index
+                .Where(kv => kv.Value == userId)
+                .Select(kv => kv.Key)
+                .ToList();
+
             var tasks = new List<ToDoItem>();
 
-            foreach (var file in files)
+            foreach (var taskId in taskIds)
             {
-                var json = await File.ReadAllTextAsync(file, ct);
-                var task = JsonSerializer.Deserialize<ToDoItem>(json);
+                var path = GetTaskFilePath(taskId);
+                if (!File.Exists(path)) continue;
+
+                var json = await File.ReadAllTextAsync(path, ct);
+                var task = JsonSerializer.Deserialize<ToDoItem>(json, JsonOptions);
                 if (task != null) tasks.Add(task);
             }
 
@@ -76,20 +92,16 @@ namespace ToDoListBot.Infrastructure.DataAccess
             if (!File.Exists(path)) return null;
 
             var json = await File.ReadAllTextAsync(path, ct);
-            return JsonSerializer.Deserialize<ToDoItem>(json);
+            return JsonSerializer.Deserialize<ToDoItem>(json, JsonOptions);
         }
 
         public async Task AddAsync(ToDoItem item, CancellationToken ct = default)
         {
-            var userFolder = GetUserFolder(item.User.UserId);
-            if (!Directory.Exists(userFolder))
-                Directory.CreateDirectory(userFolder);
-
-            var path = Path.Combine(userFolder, $"ToDoItem_{item.Id:N}.json");
-            var json = JsonSerializer.Serialize(item);
+            var path = GetTaskFilePath(item.Id);
+            var json = JsonSerializer.Serialize(item, JsonOptions);
             await File.WriteAllTextAsync(path, json, ct);
 
-            // update index
+            // Обновляем 
             var index = await LoadIndexAsync(ct);
             index[item.Id] = item.User.UserId;
             await SaveIndexAsync(index, ct);
@@ -97,11 +109,8 @@ namespace ToDoListBot.Infrastructure.DataAccess
 
         public async Task UpdateAsync(ToDoItem item, CancellationToken ct = default)
         {
-            // inmomry empty, overrite
             var path = GetTaskFilePath(item.Id);
-            if (!File.Exists(path)) return;
-
-            var json = JsonSerializer.Serialize(item);
+            var json = JsonSerializer.Serialize(item, JsonOptions);
             await File.WriteAllTextAsync(path, json, ct);
         }
 
@@ -111,7 +120,7 @@ namespace ToDoListBot.Infrastructure.DataAccess
             if (File.Exists(path))
                 File.Delete(path);
 
-            // delete it
+            // Удаляем 
             var index = await LoadIndexAsync(ct);
             index.Remove(id);
             await SaveIndexAsync(index, ct);

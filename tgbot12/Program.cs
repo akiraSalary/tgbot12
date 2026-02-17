@@ -100,34 +100,44 @@ namespace ToDoListBot
 
         private static UpdateHandler CreateUpdateHandler()
         {
-            // 
-            string projectRoot = Directory.GetCurrentDirectory(); // 
-            string solutionRoot = Directory.GetParent(projectRoot)?.Parent?.Parent?.FullName ?? projectRoot; // 
+            // data dir
+            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            string dataDir = Path.Combine(solutionRoot, "data");
+            
+            string projectRoot = Directory.GetParent(exeDir)?.Parent?.Parent?.FullName
+                ?? exeDir; 
+
+            // data
+            string dataDir = Path.Combine(projectRoot, "data");
             string usersPath = Path.Combine(dataDir, "users");
             string tasksPath = Path.Combine(dataDir, "tasks");
 
-            // 
+            // create if not
             Directory.CreateDirectory(dataDir);
             Directory.CreateDirectory(usersPath);
             Directory.CreateDirectory(tasksPath);
 
+            // ---- debug
+            Console.WriteLine($"Папка данных: {dataDir}");
+            Console.WriteLine($"Пользователи: {usersPath}");
+            Console.WriteLine($"Задачи: {tasksPath}");
+
+            // repos
             var userRepo = new FileUserRepository(usersPath);
             var todoRepo = new FileToDoRepository(tasksPath);
 
+            // service
             var userService = new UserService(userRepo);
             var todoService = new ToDoService(todoRepo, maxTaskCount: 10, maxTaskLength: 100);
             var reportService = new ToDoReportService(todoRepo);
 
            
-
             return new UpdateHandler(
                 userService,
                 todoService,
                 reportService,
-                10,
-                100,
+                maxTaskCount: 10,
+                maxTaskLength: 100,
                 _botClient
             );
         }

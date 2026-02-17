@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;   
 
 namespace ToDoListBot.Core.Entities;
 
@@ -9,6 +10,7 @@ public class ToDoItem
     public ToDoUser User { get; init; } = null!;
     public string Name { get; init; } = string.Empty;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public ToDoItemState State { get; private set; } = ToDoItemState.Active;
     public DateTime? StateChangedAt { get; private set; }
     public ToDoItem(ToDoUser user, string name)
