@@ -117,7 +117,7 @@ namespace ToDoListBot
             Directory.CreateDirectory(usersPath);
             Directory.CreateDirectory(tasksPath);
 
-            // ---- debug
+            // ---- debug (пускай остается)
             Console.WriteLine($"Папка данных: {dataDir}");
             Console.WriteLine($"Пользователи: {usersPath}");
             Console.WriteLine($"Задачи: {tasksPath}");
