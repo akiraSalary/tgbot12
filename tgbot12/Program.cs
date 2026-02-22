@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -6,12 +7,12 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
 using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.Services;
 using ToDoListBot.Infrastructure.DataAccess;
 using ToDoListBot.TelegramBot;
+using ToDoListBot.TelegramBot.Scenarios;
 
 namespace ToDoListBot
 {
@@ -21,15 +22,16 @@ namespace ToDoListBot
 
         static async Task Main(string[] args)
         {
-            Console.Title = "тг бот консоль";
+            Console.Title = "ToDo Telegram Bot";
 
-         
+            // token
+
             string? token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
 
             if (string.IsNullOrWhiteSpace(token))
             {
                 Console.WriteLine("Переменная окружения TELEGRAM_BOT_TOKEN не установлена.");
-                Console.Write("Введите токен бота (ввод не будет сохранён в коде, только для теста): ");
+                Console.Write("Введите токен бота (только для локального теста, не сохраняется): ");
                 token = Console.ReadLine()?.Trim();
 
                 if (string.IsNullOrWhiteSpace(token))
@@ -41,16 +43,11 @@ namespace ToDoListBot
 
             _botClient = new TelegramBotClient(token);
 
+         
             var me = await _botClient.GetMe();
             Console.WriteLine($"Бот запущен: @{me.Username} ({me.FirstName})");
-
-           
-            await SetMyCommands();
-
-            
-            var updateHandler = CreateUpdateHandler();
-
-           
+            await SetMyCommandsAsync();
+            var handler = CreateUpdateHandler();
             var receiverOptions = new ReceiverOptions
             {
                 AllowedUpdates = Array.Empty<UpdateType>(), 
@@ -59,16 +56,15 @@ namespace ToDoListBot
 
             using var cts = new CancellationTokenSource();
 
-            
             _botClient.StartReceiving(
-                updateHandler.HandleUpdateAsync,
-                updateHandler.HandlePollingErrorAsync,
+                updateHandler: handler.HandleUpdateAsync,
+                errorHandler: handler.HandlePollingErrorAsync,
                 receiverOptions: receiverOptions,
                 cancellationToken: cts.Token);
 
             Console.WriteLine("Нажмите клавишу A для выхода...");
 
-          
+            
             while (!cts.Token.IsCancellationRequested)
             {
                 if (Console.KeyAvailable)
@@ -82,7 +78,6 @@ namespace ToDoListBot
                     }
                     else
                     {
-                      
                         Console.WriteLine($"Бот: @{me.Username}");
                         Console.WriteLine($"ID: {me.Id}");
                         Console.WriteLine($"Имя: {me.FirstName}");
@@ -95,29 +90,27 @@ namespace ToDoListBot
             }
 
             Console.WriteLine("Программа завершена.");
-            await Task.Delay(1500); 
+            await Task.Delay(1500);
         }
 
         private static UpdateHandler CreateUpdateHandler()
         {
-            // data dir
             string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            
             string projectRoot = Directory.GetParent(exeDir)?.Parent?.Parent?.FullName
-                ?? exeDir; 
+                ?? exeDir;
 
-            // data
+            // location
             string dataDir = Path.Combine(projectRoot, "data");
             string usersPath = Path.Combine(dataDir, "users");
             string tasksPath = Path.Combine(dataDir, "tasks");
 
-            // create if not
+            // folders if not
             Directory.CreateDirectory(dataDir);
             Directory.CreateDirectory(usersPath);
             Directory.CreateDirectory(tasksPath);
 
-            // ---- debug (пускай остается)
+            // debug
             Console.WriteLine($"Папка данных: {dataDir}");
             Console.WriteLine($"Пользователи: {usersPath}");
             Console.WriteLine($"Задачи: {tasksPath}");
@@ -126,23 +119,31 @@ namespace ToDoListBot
             var userRepo = new FileUserRepository(usersPath);
             var todoRepo = new FileToDoRepository(tasksPath);
 
-            // service
+            // servs
             var userService = new UserService(userRepo);
             var todoService = new ToDoService(todoRepo, maxTaskCount: 10, maxTaskLength: 100);
             var reportService = new ToDoReportService(todoRepo);
 
-           
+            var scenarios = new IScenario[]
+            {
+                new AddTaskScenario(userService, todoService),
+            };
+
+            var contextRepository = new InMemoryScenarioContextRepository();
+
             return new UpdateHandler(
                 userService,
                 todoService,
                 reportService,
-                maxTaskCount: 10,
-                maxTaskLength: 100,
-                _botClient
+                10,
+                100,
+                _botClient,
+                scenarios,
+                contextRepository
             );
         }
 
-        private static async Task SetMyCommands()
+        private static async Task SetMyCommandsAsync()
         {
             var commands = new[]
             {

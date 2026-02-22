@@ -23,4 +23,10 @@ public class ToDoItem
         State = ToDoItemState.Completed;
         StateChangedAt = DateTime.UtcNow;
     }
+    public DateTime? Deadline { get; private set; }
+
+    public void SetDeadline(DateTime deadline)
+    {
+        Deadline = deadline;
+    }
 }
