@@ -19,7 +19,7 @@ using ToDoListBot.TelegramBot.Scenarios;
 
 namespace ToDoListBot.TelegramBot
 {
-    public class UpdateHandler : IUpdateHandler // помогите 
+    public class UpdateHandler  // помогите 
     {
         private readonly IUserService _userService;
         private readonly IToDoService _toDoService;
