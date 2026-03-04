@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -6,12 +7,12 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
 using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.Services;
 using ToDoListBot.Infrastructure.DataAccess;
 using ToDoListBot.TelegramBot;
+using ToDoListBot.TelegramBot.Scenarios;
 
 namespace ToDoListBot
 {
@@ -21,15 +22,18 @@ namespace ToDoListBot
 
         static async Task Main(string[] args)
         {
-            Console.Title = "тг бот консоль";
+            Console.Title = "ToDo Telegram Bot";
 
-            // из переменной
+            // token
+
             string? token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
+
             if (string.IsNullOrWhiteSpace(token))
             {
                 Console.WriteLine("Переменная окружения TELEGRAM_BOT_TOKEN не установлена.");
-                Console.Write("Введите токен бота (ввод не будет сохранён в коде, только для локального теста): ");
-                token = Console.ReadLine();
+                Console.Write("Введите токен бота (только для локального теста, не сохраняется): ");
+                token = Console.ReadLine()?.Trim();
+
                 if (string.IsNullOrWhiteSpace(token))
                 {
                     Console.WriteLine("Токен не указан. Выход.");
@@ -37,46 +41,30 @@ namespace ToDoListBot
                 }
             }
 
-            _botClient = new TelegramBotClient(token!);
+            _botClient = new TelegramBotClient(token);
 
+         
             var me = await _botClient.GetMe();
             Console.WriteLine($"Бот запущен: @{me.Username} ({me.FirstName})");
-
-            // Установка нативного меню команд
-            var commands = new[]
-            {
-                new BotCommand { Command = "start",   Description = "Начать работу / зарегистрироваться" },
-                new BotCommand { Command = "help",    Description = "Список команд и справка" },
-                new BotCommand { Command = "info",    Description = "Информация о пользователе и лимитах" },
-                new BotCommand { Command = "addtask", Description = "Добавить новую задачу" },
-                new BotCommand { Command = "showtasks",   Description = "Показать только активные задачи" },
-                new BotCommand { Command = "showalltasks", Description = "Показать все задачи" },
-                new BotCommand { Command = "completetask", Description = "Завершить задачу по ID" },
-                new BotCommand { Command = "removetask",   Description = "Удалить задачу по ID" },
-                new BotCommand { Command = "report",  Description = "Статистика по задачам" },
-                new BotCommand { Command = "find",    Description = "Поиск активных задач по префиксу" }
-            };
-
-            await _botClient.SetMyCommands(commands);
-
-            var updateHandler = CreateUpdateHandler();
-
+            await SetMyCommandsAsync();
+            var handler = CreateUpdateHandler();
             var receiverOptions = new ReceiverOptions
             {
-                AllowedUpdates = Array.Empty<UpdateType>(),
-                DropPendingUpdates = true
+                AllowedUpdates = Array.Empty<UpdateType>(), 
+                DropPendingUpdates = true 
             };
 
             using var cts = new CancellationTokenSource();
 
             _botClient.StartReceiving(
-                updateHandler.HandleUpdateAsync,
-                updateHandler.HandlePollingErrorAsync,
-                receiverOptions,
-                cts.Token);
+                updateHandler: handler.HandleUpdateAsync,
+                errorHandler: handler.HandlePollingErrorAsync,
+                receiverOptions: receiverOptions,
+                cancellationToken: cts.Token);
 
             Console.WriteLine("Нажмите клавишу A для выхода...");
 
+            
             while (!cts.Token.IsCancellationRequested)
             {
                 if (Console.KeyAvailable)
@@ -93,7 +81,7 @@ namespace ToDoListBot
                         Console.WriteLine($"Бот: @{me.Username}");
                         Console.WriteLine($"ID: {me.Id}");
                         Console.WriteLine($"Имя: {me.FirstName}");
-                        Console.WriteLine($"Можно писать в Telegram @{me.Username}");
+                        Console.WriteLine($"Можно писать в Telegram: @{me.Username}");
                         Console.WriteLine("Нажмите A для выхода...");
                     }
                 }
@@ -107,12 +95,41 @@ namespace ToDoListBot
 
         private static UpdateHandler CreateUpdateHandler()
         {
-            var userRepo = new InMemoryUserRepository();
-            var todoRepo = new InMemoryToDoRepository();
+            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
+            string projectRoot = Directory.GetParent(exeDir)?.Parent?.Parent?.FullName
+                ?? exeDir;
+
+            // location
+            string dataDir = Path.Combine(projectRoot, "data");
+            string usersPath = Path.Combine(dataDir, "users");
+            string tasksPath = Path.Combine(dataDir, "tasks");
+
+            // folders if not
+            Directory.CreateDirectory(dataDir);
+            Directory.CreateDirectory(usersPath);
+            Directory.CreateDirectory(tasksPath);
+
+            // debug
+            Console.WriteLine($"Папка данных: {dataDir}");
+            Console.WriteLine($"Пользователи: {usersPath}");
+            Console.WriteLine($"Задачи: {tasksPath}");
+
+            // repos
+            var userRepo = new FileUserRepository(usersPath);
+            var todoRepo = new FileToDoRepository(tasksPath);
+
+            // servs
             var userService = new UserService(userRepo);
             var todoService = new ToDoService(todoRepo, maxTaskCount: 10, maxTaskLength: 100);
             var reportService = new ToDoReportService(todoRepo);
+
+            var scenarios = new IScenario[]
+            {
+                new AddTaskScenario(userService, todoService),
+            };
+
+            var contextRepository = new InMemoryScenarioContextRepository();
 
             return new UpdateHandler(
                 userService,
@@ -120,8 +137,29 @@ namespace ToDoListBot
                 reportService,
                 10,
                 100,
-                _botClient
+                _botClient,
+                scenarios,
+                contextRepository
             );
+        }
+
+        private static async Task SetMyCommandsAsync()
+        {
+            var commands = new[]
+            {
+                new BotCommand { Command = "start",   Description = "Начать работу / зарегистрироваться" },
+                new BotCommand { Command = "help",    Description = "Список команд и справка" },
+                new BotCommand { Command = "info",    Description = "Информация о пользователе и лимитах" },
+                new BotCommand { Command = "addtask", Description = "Добавить новую задачу" },
+                new BotCommand { Command = "showtasks",   Description = "Показать только активные задачи" },
+                new BotCommand { Command = "showalltasks", Description = "Показать все задачи" },
+                new BotCommand { Command = "completetask", Description = "Завершить задачу по ID" },
+                new BotCommand { Command = "removetask",   Description = "Удалить задачу по ID" },
+                new BotCommand { Command = "report",  Description = "Статистика по задачам" },
+                new BotCommand { Command = "find",    Description = "Поиск активных задач по префиксу" }
+            };
+
+            await _botClient.SetMyCommands(commands);
         }
     }
 }

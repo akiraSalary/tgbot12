@@ -74,5 +74,10 @@ namespace ToDoListBot.Core.Services
                 t.State == ToDoItemState.Active &&
                 t.Name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase), ct);
         }
+
+        public async Task UpdateTaskAsync(ToDoItem task, CancellationToken ct = default)
+        {
+            await _repository.UpdateAsync(task, ct);
+        }
     }
 }

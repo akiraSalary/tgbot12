@@ -13,5 +13,6 @@ namespace ToDoListBot.Core.Services
         Task MarkCompletedAsync(Guid taskId, CancellationToken ct = default);
         Task DeleteAsync(Guid taskId, CancellationToken ct = default);
         Task<IReadOnlyList<ToDoItem>> FindAsync(ToDoUser user, string namePrefix, CancellationToken ct = default);
+        Task UpdateTaskAsync (ToDoItem item, CancellationToken ct = default);
     }
 }
