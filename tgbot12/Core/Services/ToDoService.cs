@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -33,7 +33,7 @@ namespace ToDoListBot.Core.Services
             name = name.Trim();
 
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Название задачи не может быть пустым");
+                throw new ArgumentException("РќР°Р·РІР°РЅРёРµ Р·Р°РґР°С‡Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј");
 
             if (name.Length > _maxTaskLength)
                 throw new TaskLengthLimitException(name.Length, _maxTaskLength);
@@ -43,17 +43,39 @@ namespace ToDoListBot.Core.Services
                 throw new TaskCountLimitException(_maxTaskCount);
 
             if (await _repository.ExistsByNameAsync(user.UserId, name, ct))
-                throw new InvalidOperationException("Такая активная задача уже существует");
+                throw new InvalidOperationException("РўР°РєР°СЏ Р°РєС‚РёРІРЅР°СЏ Р·Р°РґР°С‡Р° СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚");
 
             var task = new ToDoItem(user, name);
             await _repository.AddAsync(task, ct);
             return task;
         }
+        public async Task<ToDoItem> AddTaskAsync(ToDoUser user, string name, Guid? listId = null, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(name) || name.Length > _maxTaskLength)
+                throw new ArgumentException($"РќР°Р·РІР°РЅРёРµ Р·Р°РґР°С‡Рё РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РѕС‚ 1 РґРѕ {_maxTaskLength} СЃРёРјРІРѕР»РѕРІ");
+
+            if (await _repository.CountActiveAsync(user.UserId, ct) >= _maxTaskCount)
+                throw new TaskCountLimitException(_maxTaskCount);
+
+            if (await _repository.ExistsByNameAsync(user.UserId, name, ct))
+                throw new InvalidOperationException("Р—Р°РґР°С‡Р° СЃ С‚Р°РєРёРј РёРјРµРЅРµРј СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚");
+
+            var item = new ToDoItem(user, name)
+            {
+                ListId = listId  // в†ђ СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј ListId
+            };
+
+            await _repository.AddAsync(item, ct);
+            return item;
+        }
+
+        public Task<IReadOnlyList<ToDoItem>> GetByListIdAsync(Guid listId, CancellationToken ct = default)
+            => _repository.GetListIdAsync(listId, ct);
 
         public async Task MarkCompletedAsync(Guid taskId, CancellationToken ct = default)
         {
             var task = await _repository.GetAsync(taskId, ct)
-                ?? throw new KeyNotFoundException("Задача не найдена");
+                ?? throw new KeyNotFoundException("Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°");
 
             task.Complete();
             await _repository.UpdateAsync(task, ct);
@@ -63,7 +85,7 @@ namespace ToDoListBot.Core.Services
         {
             var task = await _repository.GetAsync(taskId, ct);
             if (task == null)
-                throw new KeyNotFoundException("Задача не найдена");
+                throw new KeyNotFoundException("Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°");
 
             await _repository.DeleteAsync(taskId, ct);
         }

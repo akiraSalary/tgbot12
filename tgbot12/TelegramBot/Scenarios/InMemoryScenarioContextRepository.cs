@@ -1,32 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
 
-
-namespace ToDoListBot.TelegramBot.Scenarios;
-
-public class InMemoryScenarioContextRepository : IScenarioContextRepository
+namespace ToDoListBot.TelegramBot.Scenarios
 {
-    private readonly ConcurrentDictionary<long, ScenarioContext> _contexts = new();
-
-    public Task<ScenarioContext?> GetContext(long userId, CancellationToken ct = default)
+    public class InMemoryScenarioContextRepository : IScenarioContextRepository
     {
-        _contexts.TryGetValue(userId, out var context);
-        return Task.FromResult(context);
-    }
+        private readonly ConcurrentDictionary<long, ScenarioContext> _contexts = new();
 
-    public Task SetContext(long userId, ScenarioContext context, CancellationToken ct = default)
-    {
-        _contexts[userId] = context;
-        return Task.CompletedTask;
-    }
+        public Task<ScenarioContext?> GetContext(long userId, CancellationToken ct = default)
+        {
+            _contexts.TryGetValue(userId, out var context);
+            return Task.FromResult(context);
+        }
 
-    public Task ResetContext(long userId, CancellationToken ct = default)
-    {
-        _contexts.TryRemove(userId, out _);
-        return Task.CompletedTask;
+        public Task SetContext(long userId, ScenarioContext context, CancellationToken ct = default)
+        {
+            _contexts[userId] = context;
+            return Task.CompletedTask;
+        }
+
+        public Task ResetContext(long userId, CancellationToken ct = default)
+        {
+            _contexts.TryRemove(userId, out _);
+            return Task.CompletedTask;
+        }
     }
 }

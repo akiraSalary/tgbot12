@@ -9,6 +9,7 @@ public class ToDoItem
     public Guid Id { get; init; } = Guid.NewGuid();
     public ToDoUser User { get; init; } = null!;
     public string Name { get; init; } = string.Empty;
+    public Guid? ListId { get; set; } = null;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     [JsonInclude]
     public ToDoItemState State { get; private set; } = ToDoItemState.Active;
