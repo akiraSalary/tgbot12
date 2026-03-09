@@ -119,6 +119,9 @@ namespace ToDoListBot
             var userRepo = new FileUserRepository(usersPath);
             var todoRepo = new FileToDoRepository(tasksPath);
 
+            var toDoListRepo = new FileToDoListRepository(tasksPath);
+            var toDoListService = new ToDoListService(toDoListRepo);
+
             // servs
             var userService = new UserService(userRepo);
             var todoService = new ToDoService(todoRepo, maxTaskCount: 10, maxTaskLength: 100);
@@ -127,6 +130,8 @@ namespace ToDoListBot
             var scenarios = new IScenario[]
             {
                 new AddTaskScenario(userService, todoService),
+                new AddListScenario(userService, toDoListService),
+                new AddTaskToListScenario(userService, todoService),
             };
 
             var contextRepository = new InMemoryScenarioContextRepository();
@@ -139,7 +144,8 @@ namespace ToDoListBot
                 100,
                 _botClient,
                 scenarios,
-                contextRepository
+                contextRepository,
+                toDoListService
             );
         }
 
@@ -151,8 +157,7 @@ namespace ToDoListBot
                 new BotCommand { Command = "help",    Description = "Список команд и справка" },
                 new BotCommand { Command = "info",    Description = "Информация о пользователе и лимитах" },
                 new BotCommand { Command = "addtask", Description = "Добавить новую задачу" },
-                new BotCommand { Command = "showtasks",   Description = "Показать только активные задачи" },
-                new BotCommand { Command = "showalltasks", Description = "Показать все задачи" },
+                new BotCommand { Command = "show",   Description = "Показать только активные задачи" },
                 new BotCommand { Command = "completetask", Description = "Завершить задачу по ID" },
                 new BotCommand { Command = "removetask",   Description = "Удалить задачу по ID" },
                 new BotCommand { Command = "report",  Description = "Статистика по задачам" },

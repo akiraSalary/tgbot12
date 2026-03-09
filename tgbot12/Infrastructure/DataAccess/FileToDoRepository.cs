@@ -47,6 +47,23 @@ namespace ToDoListBot.Infrastructure.DataAccess
             return JsonSerializer.Deserialize<Dictionary<Guid, Guid>>(json) ?? new();
         }
 
+        public async Task<IReadOnlyList<ToDoItem>> GetByListIdAsync(Guid listId, CancellationToken ct = default)
+        {
+            var files = Directory.GetFiles(_basePath, "ToDoItem_*.json");
+            var tasks = new List<ToDoItem>();
+
+            foreach (var file in files)
+            {
+                var json = await File.ReadAllTextAsync(file, ct);
+                var task = JsonSerializer.Deserialize<ToDoItem>(json, JsonOptions);
+                if (task != null && task.ListId == listId)
+                    tasks.Add(task);
+            }
+
+            return tasks.AsReadOnly();
+        }
+
+
         private async Task SaveIndexAsync(Dictionary<Guid, Guid> index, CancellationToken ct = default)
         {
             var json = JsonSerializer.Serialize(index, JsonOptions);

@@ -9,18 +9,18 @@ using ToDoListBot.TelegramBot.Scenarios;
 
 namespace ToDoListBot.TelegramBot.Scenarios
 {
-    public class AddTaskScenario : IScenario
+    public class AddTaskToListScenario : IScenario
     {
         private readonly IUserService _userService;
         private readonly IToDoService _toDoService;
 
-        public AddTaskScenario(IUserService userService, IToDoService toDoService)
+        public AddTaskToListScenario(IUserService userService, IToDoService toDoService)
         {
             _userService = userService;
             _toDoService = toDoService;
         }
 
-        public bool CanHandle(ScenarioType scenario) => scenario == ScenarioType.AddTask;
+        public bool CanHandle(ScenarioType scenario) => scenario == ScenarioType.AddTaskToList;
 
         public async Task<ScenarioResult> HandleMessageAsync(
             ITelegramBotClient bot,
@@ -39,7 +39,8 @@ namespace ToDoListBot.TelegramBot.Scenarios
                 case null:
                     context.CurrentStep = "Name";
                     context.Data["User"] = await _userService.GetUserAsync(message.From.Id, ct);
-                    await bot.SendMessage(chatId, "Введите название задачи:", cancellationToken: ct);
+                    // ListId уже должен быть в Data (передаётся при запуске сценария)
+                    await bot.SendMessage(chatId, "Введите название задачи для этого списка:", cancellationToken: ct);
                     return ScenarioResult.Transition;
 
                 case "Name":
@@ -69,12 +70,18 @@ namespace ToDoListBot.TelegramBot.Scenarios
                             return ScenarioResult.Completed;
                         }
 
-                        var task = await _toDoService.AddTaskAsync(user, name, null, ct);  // ← null = без списка
+                        if (!context.Data.TryGetValue("ListId", out var listIdObj) || listIdObj is not Guid listId)
+                        {
+                            await bot.SendMessage(chatId, "Ошибка: ID списка не найден.", cancellationToken: ct);
+                            return ScenarioResult.Completed;
+                        }
+
+                        var task = await _toDoService.AddTaskAsync(user, name, listId, ct);  // ← передаём listId
                         task.SetDeadline(deadline);
                         await _toDoService.UpdateTaskAsync(task, ct);
 
                         await bot.SendMessage(chatId,
-                            $"Задача \"{name}\" добавлена без списка с дедлайном {deadline:dd.MM.yyyy}! (ID: {task.Id})",
+                            $"Задача \"{name}\" добавлена в список с дедлайном {deadline:dd.MM.yyyy}! (ID: {task.Id})",
                             cancellationToken: ct);
 
                         return ScenarioResult.Completed;

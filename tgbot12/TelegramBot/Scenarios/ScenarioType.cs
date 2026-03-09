@@ -9,5 +9,7 @@ namespace ToDoListBot.TelegramBot.Scenarios;
 public enum ScenarioType
 {
     None,
-    AddTask
+    AddTask,
+    AddList,
+    AddTaskToList,
 }
