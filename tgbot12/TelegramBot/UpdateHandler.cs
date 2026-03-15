@@ -302,7 +302,7 @@ namespace ToDoListBot.TelegramBot
                         else
                         {
                             // Показать задачи конкретного списка
-                            var tasks = await _toDoService.GetByListIdAsync(dto.ToDoListId.Value, ct);
+                            var tasks = await _toDoService.GetByUserIdAndListAsync(dto.ToDoListId.Value, ct);
 
                             var sb = new StringBuilder($"Задачи списка (ID: {dto.ToDoListId}):\n\n");
 
