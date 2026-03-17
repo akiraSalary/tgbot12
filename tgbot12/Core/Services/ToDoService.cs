@@ -69,8 +69,12 @@ namespace ToDoListBot.Core.Services
             return item;
         }
 
-        public Task<IReadOnlyList<ToDoItem>> GetByListIdAsync(Guid listId, CancellationToken ct = default)
-            => _repository.GetListIdAsync(listId, ct);
+        public async Task<IReadOnlyList<ToDoItem>> GetUserIdAndListAsync(Guid userId, Guid listId, CancellationToken ct = default)
+        {
+            var allTasks = await _repository.GetAllByUserIdAsync(userId, ct);
+            var filtered = allTasks.Where(t => t.ListId == listId).ToList();
+            return filtered.AsReadOnly();
+        }
 
         public async Task MarkCompletedAsync(Guid taskId, CancellationToken ct = default)
         {

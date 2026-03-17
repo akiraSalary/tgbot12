@@ -4,7 +4,7 @@ namespace ToDoListBot.TelegramBot.Dto
 {
     public class ToDoListCallbackDto : CallbackDto
     {
-        public Guid? ToDoListId { get; set; }
+        public Guid?  ToDoListId { get; set; }
 
         public static new ToDoListCallbackDto? FromString(string input)
         {

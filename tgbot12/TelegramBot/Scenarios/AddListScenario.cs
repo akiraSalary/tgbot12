@@ -36,20 +36,16 @@ namespace ToDoListBot.TelegramBot.Scenarios
 
             switch (context.CurrentStep)
             {
-                case null: // Начало сценария
+                case null:
                     context.CurrentStep = "Name";
                     context.Data["User"] = await _userService.GetUserAsync(message.From.Id, ct);
-                    await bot.SendMessage(chatId,
-                        "Введите название нового списка (максимум 10 символов):",
-                        cancellationToken: ct);
+                    await bot.SendMessage(chatId, "Введите название нового списка (макс. 10 символов):", cancellationToken: ct);
                     return ScenarioResult.Transition;
 
                 case "Name":
                     if (string.IsNullOrWhiteSpace(text) || text.Length > 10)
                     {
-                        await bot.SendMessage(chatId,
-                            "Название должно быть от 1 до 10 символов. Попробуйте снова:",
-                            cancellationToken: ct);
+                        await bot.SendMessage(chatId, "Название должно быть от 1 до 10 символов. Попробуйте снова:", cancellationToken: ct);
                         return ScenarioResult.Processed;
                     }
 
@@ -63,13 +59,13 @@ namespace ToDoListBot.TelegramBot.Scenarios
                     var list = await _toDoListService.AddAsync(user, text, ct);
 
                     await bot.SendMessage(chatId,
-                        $"Список \"{text}\" успешно создан! (ID: {list.Id})\n\nТеперь вы можете добавить в него задачи.",
+                        $"Список \"{text}\" успешно создан! (ID: {list.Id})",
                         cancellationToken: ct);
 
-                    return ScenarioResult.Completed;
+                    return ScenarioResult.Completed;   // ← важно! завершаем сценарий
 
                 default:
-                    await bot.SendMessage(chatId, "Неизвестный шаг сценария. Завершаем.", cancellationToken: ct);
+                    await bot.SendMessage(chatId, "Неизвестный шаг. Сценарий завершён.", cancellationToken: ct);
                     return ScenarioResult.Completed;
             }
         }

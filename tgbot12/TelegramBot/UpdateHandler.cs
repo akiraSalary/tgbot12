@@ -302,7 +302,7 @@ namespace ToDoListBot.TelegramBot
                         else
                         {
                             // Показать задачи конкретного списка
-                            var tasks = await _toDoService.GetByUserIdAndListAsync(dto.ToDoListId.Value, ct);
+                            var tasks = await _toDoService.GetUserIdAndListAsync(user.UserId, dto.ToDoListId.Value, ct);
 
                             var sb = new StringBuilder($"Задачи списка (ID: {dto.ToDoListId}):\n\n");
 
@@ -347,13 +347,24 @@ namespace ToDoListBot.TelegramBot
                             cancellationToken: ct);
                         break;
 
-                    case "addtasktolist":
-                        var listId = dto.ToDoListId;
-                        if (listId == null) return;
+                    case "addlist":
+                        var addListContext = new ScenarioContext(ScenarioType.AddList);
+                        await _contextRepository.SetContext(userId, addListContext, ct);
 
-                        var newContext = new ScenarioContext(ScenarioType.AddTaskToList);
-                        newContext.Data["ListId"] = listId;
-                        await _contextRepository.SetContext(userId, newContext, ct);
+                        await _botClient.EditMessageText(
+                            chatId,
+                            messageId,
+                            "Введите название нового списка (макс. 10 символов):",
+                            replyMarkup: null,
+                            cancellationToken: ct);
+
+                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, "Создаём новый список", cancellationToken: ct);
+                        break;
+
+                    case "addtasktolist":
+                        var addTaskContext = new ScenarioContext(ScenarioType.AddTaskToList);
+                        addTaskContext.Data["ListId"] = dto.ToDoListId;
+                        await _contextRepository.SetContext(userId, addTaskContext, ct);
 
                         await _botClient.EditMessageText(
                             chatId,
@@ -504,25 +515,32 @@ namespace ToDoListBot.TelegramBot
 
         private async Task ProcessScenario(ScenarioContext context, Message message, CancellationToken ct)
         {
-            var scenario = GetScenario(context.CurrentScenario);
-            var result = await scenario.HandleMessageAsync(_botClient, context, message, ct);
-
-            switch (result)
+            try
             {
-                case ScenarioResult.Completed:
-                    await _contextRepository.ResetContext(message.From.Id, ct);
-                    await SendWithKeyboardAsync(message.Chat, "Сценарий завершён.", GetMainKeyboard(), ct);
-                    break;
+                var scenario = GetScenario(context.CurrentScenario);
+                var result = await scenario.HandleMessageAsync(_botClient, context, message, ct);
 
-                case ScenarioResult.Transition:
-                case ScenarioResult.Processed:
-                    // Продолжаем сценарий, клавиатура с /cancel остаётся
-                    await SendWithKeyboardAsync(message.Chat, "Продолжайте ввод...", GetCancelKeyboard(), ct);
-                    break;
+                switch (result)
+                {
+                    case ScenarioResult.Completed:
+                        await _contextRepository.ResetContext(message.From.Id, ct);
+                        await SendWithKeyboardAsync(message.Chat, "Сценарий завершён.", GetMainKeyboard(), ct);
+                        break;
+
+                    case ScenarioResult.Transition:
+                    case ScenarioResult.Processed:
+                        await SendWithKeyboardAsync(message.Chat, "Продолжайте ввод...", GetCancelKeyboard(), ct);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                await _botClient.SendMessage(message.Chat.Id, $"Ошибка: {ex.Message}", cancellationToken: ct);
+                await _contextRepository.ResetContext(message.From.Id, ct);
             }
         }
 
-     //other commands
+        //other commands
 
         private async Task HandleAddTaskAsync(Chat chat, string[] parts, CancellationToken ct)
         {

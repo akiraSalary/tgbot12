@@ -10,7 +10,6 @@ namespace ToDoListBot.Core.DataAccess
     {
         Task<IReadOnlyList<ToDoItem>> GetAllByUserIdAsync(Guid userId, CancellationToken ct = default);
         Task<IReadOnlyList<ToDoItem>> GetActiveByUserIdAsync(Guid userId, CancellationToken ct = default);
-        Task<IReadOnlyList<ToDoItem>> GetListIdAsync(Guid userId, CancellationToken ct = default);
         Task<ToDoItem?> GetAsync(Guid id, CancellationToken ct = default);
         Task AddAsync(ToDoItem item, CancellationToken ct = default);
         Task UpdateAsync(ToDoItem item, CancellationToken ct = default);
