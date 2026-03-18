@@ -17,6 +17,7 @@ using ToDoListBot.Core.Services;
 using ToDoListBot.Core.Exceptions;
 using ToDoListBot.TelegramBot.Scenarios;
 using ToDoListBot.TelegramBot.Dto;
+using System.Collections.Concurrent;
 
 namespace ToDoListBot.TelegramBot
 {
@@ -31,6 +32,7 @@ namespace ToDoListBot.TelegramBot
         private readonly IEnumerable<IScenario> _scenarios;
         private readonly IScenarioContextRepository _contextRepository;
         private readonly IToDoListService _toDoListService;
+        
 
         private static ToDoUser? CurrentUser;
 
@@ -55,6 +57,9 @@ namespace ToDoListBot.TelegramBot
             _contextRepository = contextRepository;
             _toDoListService = toDoListService;
         }
+
+     
+
         private async Task SendWithInlineKeyboardAsync(Chat chat, string text, InlineKeyboardMarkup? inlineKeyboard, CancellationToken ct)
         {
             await _botClient.SendMessage(
@@ -67,14 +72,19 @@ namespace ToDoListBot.TelegramBot
 
         public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)
         {
-            if (update.Message is not { } message) return;
-            if (message.Text is not { } text) return;
+           
 
             if (update.CallbackQuery is { } callbackQuery)
             {
                 await OnCallbackQuery(callbackQuery, ct);
                 return;
             }
+
+            if (update.Message is not { } message)
+                return;
+            
+            if (message.Text is not { } text)
+                return;
 
             var chat = message.Chat;
             var from = message.From ?? throw new InvalidOperationException("No From user");
@@ -121,6 +131,30 @@ namespace ToDoListBot.TelegramBot
                 switch (cmd)
                 {
                     case "start":
+                        var user = await _userService.GetUserAsync(message.From.Id, ct);
+                        if (user == null)
+                        {
+                            user = await _userService.RegisterUserAsync(
+                                message.From.Id,
+                                message.From.Username ?? "Unknown",
+                                ct);
+
+                            await SendWithKeyboardAsync(
+                                chat,
+                                $"Привет, @{user.TelegramUserName}! Ты успешно зарегистрирован.\nИспользуй меню или /help",
+                                GetMainKeyboard(),
+                                ct);
+                        }
+                        else
+                        {
+                            await SendWithKeyboardAsync(
+                                chat,
+                                $"С возвращением, @{user.TelegramUserName}!",
+                                GetMainKeyboard(),
+                                ct);
+                        }
+                        break;
+
                     case "help":
                         await SendWithKeyboardAsync(chat, GetHelpText(), GetMainKeyboard(), ct);
                         break;
@@ -169,6 +203,14 @@ namespace ToDoListBot.TelegramBot
             {
                 await botClient.SendMessage(chat.Id, $"Ошибка: {ex.Message}", cancellationToken: ct);
             }
+        }
+
+        private static readonly ConcurrentDictionary<long, TaskCreationData> _pendingTasks = new();
+
+        private class TaskCreationData
+        {
+            public string Name { get; set; } = string.Empty;
+            public DateTime Deadline { get; set; }
         }
 
         public Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)
@@ -242,6 +284,7 @@ namespace ToDoListBot.TelegramBot
             var chatId = callbackQuery.Message.Chat.Id;
             var messageId = callbackQuery.Message.MessageId;
             var userId = callbackQuery.From.Id;
+           
 
             var user = await _userService.GetUserAsync(userId, ct);
             if (user == null)
@@ -259,77 +302,39 @@ namespace ToDoListBot.TelegramBot
                 switch (dto.Action)
                 {
                     case "show":
+                        var chat = callbackQuery.Message.Chat;
+
                         if (dto.ToDoListId == null)
+                            
                         {
-                            // Показать все списки
-                            var lists = await _toDoListService.GetUserListsAsync(user.UserId, ct);
-
-                            if (lists.Count == 0)
-                            {
-                                await _botClient.EditMessageText(
-                                    chatId,
-                                    messageId,
-                                    "У вас пока нет списков задач.\n\nСоздайте новый: /addtask",
-                                    replyMarkup: null,
-                                    cancellationToken: ct);
-                            }
-                            else
-                            {
-                                var sb = new StringBuilder("Ваши списки задач:\n\n");
-                                var buttons = new List<List<InlineKeyboardButton>>();
-
-                                foreach (var list in lists)
-                                {
-                                    sb.AppendLine($"• {list.Name} (ID: `{list.Id}`)");
-                                    buttons.Add(new List<InlineKeyboardButton>
-                            {
-                                InlineKeyboardButton.WithCallbackData(
-                                    $"Открыть {list.Name}",
-                                    $"show|{list.Id}")
-                            });
-                                }
-
-                                var keyboard = new InlineKeyboardMarkup(buttons);
-
-                                await _botClient.EditMessageText(
-                                    chatId,
-                                    messageId,
-                                    sb.ToString(),
-                                    replyMarkup: keyboard,
-                                    cancellationToken: ct);
-                            }
+                            await ShowListsAsync(chat, ct);
                         }
                         else
                         {
-                            // Показать задачи конкретного списка
-                            var tasks = await _toDoService.GetUserIdAndListAsync(user.UserId, dto.ToDoListId.Value, ct);
+                            var tasks = await _toDoService.GetByUserIdAndListAsync(dto.ToDoListId.Value, user.UserId, ct);
 
-                            var sb = new StringBuilder($"Задачи списка (ID: {dto.ToDoListId}):\n\n");
+                            var sb = new StringBuilder($"Список активных задач:\n\n");
 
                             if (tasks.Count == 0)
                             {
-                                sb.AppendLine("В этом списке пока нет задач.");
+                                sb.AppendLine("Активных задач нет");
                             }
                             else
                             {
                                 foreach (var t in tasks)
                                 {
-                                    string state = t.State == ToDoItemState.Active ? "активна" : "завершена";
-                                    sb.AppendLine($"• {t.Name} ({state}) (ID: `{t.Id}`)");
+                                    sb.AppendLine($"Task: {t.Name} - {t.Deadline:dd.MM.yyyy} - {t.Id}");
                                 }
                             }
 
                             var buttons = new List<List<InlineKeyboardButton>>
-                    {
-                        new()
-                        {
-                            InlineKeyboardButton.WithCallbackData("Добавить задачу в список", $"addtasktolist|{dto.ToDoListId}")
-                        },
-                        new()
-                        {
-                            InlineKeyboardButton.WithCallbackData("Удалить список", $"deletelist|{dto.ToDoListId}")
-                        }
-                    };
+        {
+            new()
+            {
+                InlineKeyboardButton.WithCallbackData("Добавить", $"addtasktolist|{dto.ToDoListId}"),
+                InlineKeyboardButton.WithCallbackData("Удалить", $"deletelist|{dto.ToDoListId}")
+            }
+        };
 
                             var keyboard = new InlineKeyboardMarkup(buttons);
 
@@ -341,14 +346,49 @@ namespace ToDoListBot.TelegramBot
                                 cancellationToken: ct);
                         }
 
-                        await _botClient.AnswerCallbackQuery(
-                            callbackQuery.Id,
-                            "Список обновлён",
+                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, "Список обновлён", cancellationToken: ct);
+                        break;
+
+                    case "addtask":
+                        var listIdStr = data.Split('|')[1];
+                        Guid? selectedListId = null;
+                        if (listIdStr != "none" && Guid.TryParse(listIdStr, out var parsedId))
+                            selectedListId = parsedId;
+
+                        if (!_pendingTasks.TryGetValue(userId, out var taskData))
+                        {
+                            await _botClient.AnswerCallbackQuery(callbackQuery.Id, "Ошибка: данные задачи потеряны", cancellationToken: ct);
+                            return;
+                        }
+
+                        var name = taskData.Name;
+                        var deadline = taskData.Deadline;
+
+                        var task = await _toDoService.AddTaskAsync(user, name, selectedListId, ct);
+                        task.SetDeadline(deadline);
+                        await _toDoService.UpdateTaskAsync(task, ct);
+
+                        var where = selectedListId == null ? "без списка" : "в выбранный список";
+
+                        await _botClient.EditMessageText(
+                            chatId,
+                            messageId,
+                            $"Задача \"{name}\" добавлена {where} с дедлайном {deadline:dd.MM.yyyy}! (ID: {task.Id})",
+                            replyMarkup: null,
                             cancellationToken: ct);
+
+                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, "Задача добавлена!", cancellationToken: ct);
+
+                        // Чистим временные данные
+                        _pendingTasks.TryRemove(userId, out _);
                         break;
 
                     case "addlist":
-                        var addListContext = new ScenarioContext(ScenarioType.AddList);
+                        var addListContext = new ScenarioContext(ScenarioType.AddList)
+                        {
+                            UserId = userId   
+                        };
+
                         await _contextRepository.SetContext(userId, addListContext, ct);
 
                         await _botClient.EditMessageText(
@@ -358,7 +398,10 @@ namespace ToDoListBot.TelegramBot
                             replyMarkup: null,
                             cancellationToken: ct);
 
-                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, "Создаём новый список", cancellationToken: ct);
+                        await _botClient.AnswerCallbackQuery(
+                            callbackQuery.Id,
+                            "Создаём новый список",
+                            cancellationToken: ct);
                         break;
 
                     case "addtasktolist":
@@ -372,6 +415,8 @@ namespace ToDoListBot.TelegramBot
                             "Введите название задачи для этого списка:",
                             replyMarkup: null,
                             cancellationToken: ct);
+
+                        await ProcessScenario(addTaskContext, null, ct);
 
                         await _botClient.AnswerCallbackQuery(callbackQuery.Id, "Начинаем добавление задачи", cancellationToken: ct);
                         break;
@@ -513,7 +558,7 @@ namespace ToDoListBot.TelegramBot
             return scenario;
         }
 
-        private async Task ProcessScenario(ScenarioContext context, Message message, CancellationToken ct)
+        private async Task ProcessScenario(ScenarioContext context, Message? message, CancellationToken ct)
         {
             try
             {
@@ -523,20 +568,23 @@ namespace ToDoListBot.TelegramBot
                 switch (result)
                 {
                     case ScenarioResult.Completed:
-                        await _contextRepository.ResetContext(message.From.Id, ct);
-                        await SendWithKeyboardAsync(message.Chat, "Сценарий завершён.", GetMainKeyboard(), ct);
+                        await _contextRepository.ResetContext(message?.From.Id ?? context.UserId ?? 0, ct);
+                        if (message != null)
+                            await SendWithKeyboardAsync(message.Chat, "Сценарий завершён.", GetMainKeyboard(), ct);
                         break;
 
                     case ScenarioResult.Transition:
                     case ScenarioResult.Processed:
-                        await SendWithKeyboardAsync(message.Chat, "Продолжайте ввод...", GetCancelKeyboard(), ct);
+                        if (message != null)
+                            await SendWithKeyboardAsync(message.Chat, "Продолжайте ввод...", GetCancelKeyboard(), ct);
                         break;
                 }
             }
             catch (Exception ex)
             {
-                await _botClient.SendMessage(message.Chat.Id, $"Ошибка: {ex.Message}", cancellationToken: ct);
-                await _contextRepository.ResetContext(message.From.Id, ct);
+                if (message != null)
+                    await _botClient.SendMessage(message.Chat.Id, $"Ошибка: {ex.Message}", cancellationToken: ct);
+                await _contextRepository.ResetContext(message?.From.Id ?? context.UserId ?? 0, ct);
             }
         }
 
@@ -565,43 +613,35 @@ namespace ToDoListBot.TelegramBot
         {
             if (CurrentUser == null)
             {
-                // Если пользователь не зарегистрирован — регистрируем его прямо здесь
-                var from = chat.Type == ChatType.Private ? chat.Username : null; // или используй chat.Id для private чата
-                long tgId = chat.Id; // в private чате chat.Id = userId
-
-                CurrentUser = await _userService.RegisterUserAsync(tgId, chat.Username ?? "Unknown", ct);
-
-                Console.WriteLine($"Зарегистрирован пользователь: @{CurrentUser.TelegramUserName} / Telegram ID: {tgId}");
-
-                await SendWithKeyboardAsync(chat,
-                    $"Привет, @{CurrentUser.TelegramUserName}! Ты зарегистрирован.\nИспользуй меню или /help",
-                    GetMainKeyboard(),
-                    ct);
-
-                return; // после регистрации можно сразу показать списки или выйти
+                await SendWithKeyboardAsync(chat, "Вы не зарегистрированы. Используйте /start", GetMainKeyboard(), ct);
+                return;
             }
 
             var lists = await _toDoListService.GetUserListsAsync(CurrentUser.UserId, ct);
 
-            if (lists.Count == 0)
-            {
-                await SendWithKeyboardAsync(chat, "У вас пока нет списков задач.\n\nСоздайте новый: /addtask", GetMainKeyboard(), ct);
-                return;
-            }
-
-            var sb = new StringBuilder("Ваши списки задач:\n\n");
+            var sb = new StringBuilder("Выберите список:\n\n");
             var buttons = new List<List<InlineKeyboardButton>>();
 
-            foreach (var list in lists)
+            if (lists.Count == 0)
             {
-                sb.AppendLine($"• {list.Name} (ID: `{list.Id}`)");
-                buttons.Add(new List<InlineKeyboardButton>
-        {
-            InlineKeyboardButton.WithCallbackData(
-                $"Открыть {list.Name}",
-                $"show|{list.Id}")
-        });
+                sb.AppendLine("У вас пока нет списков задач.");
             }
+            else
+            {
+                foreach (var list in lists)
+                {
+                    sb.AppendLine(list.Name);
+                    buttons.Add(new List<InlineKeyboardButton>
+            {
+                InlineKeyboardButton.WithCallbackData(list.Name, $"show|{list.Id}")
+            });
+                }
+            }
+
+               buttons.Add(new List<InlineKeyboardButton>
+                  {
+                    InlineKeyboardButton.WithCallbackData("Создать новый список", "addlist")
+                  });
 
             var keyboard = new InlineKeyboardMarkup(buttons);
 

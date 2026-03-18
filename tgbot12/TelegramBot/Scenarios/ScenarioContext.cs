@@ -13,6 +13,8 @@ public class ScenarioContext
     public string? CurrentStep { get; set; }
     public Dictionary<string, object> Data { get; set; } = new();
 
+    public long? UserId { get; set; }  // для случаев, когда message = null
+
     public ScenarioContext(ScenarioType scenario)
     {
         CurrentScenario = scenario;

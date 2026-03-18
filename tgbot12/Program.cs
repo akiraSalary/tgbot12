@@ -129,7 +129,7 @@ namespace ToDoListBot
 
             var scenarios = new IScenario[]
             {
-                new AddTaskScenario(userService, todoService),
+                new AddTaskScenario(userService, todoService, toDoListService),
                 new AddListScenario(userService, toDoListService),
                 new AddTaskToListScenario(userService, todoService),
                 new DeleteListScenario(toDoListService),

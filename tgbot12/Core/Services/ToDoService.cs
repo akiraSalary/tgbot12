@@ -68,8 +68,8 @@ namespace ToDoListBot.Core.Services
             await _repository.AddAsync(item, ct);
             return item;
         }
-
-        public async Task<IReadOnlyList<ToDoItem>> GetUserIdAndListAsync(Guid userId, Guid listId, CancellationToken ct = default)
+         
+        public async Task<IReadOnlyList<ToDoItem>> GetByUserIdAndListAsync(Guid userId, Guid listId, CancellationToken ct = default)
         {
             var allTasks = await _repository.GetAllByUserIdAsync(userId, ct);
             var filtered = allTasks.Where(t => t.ListId == listId).ToList();
