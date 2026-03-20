@@ -41,7 +41,7 @@ namespace ToDoListBot.TelegramBot.Scenarios
 
             switch (context.CurrentStep)
             {
-                case null:
+                case null:  // Начало сценария
                     context.CurrentStep = "Name";
                     context.Data["User"] = await _userService.GetUserAsync(message.From.Id, ct);
                     await bot.SendMessage(chatId, "Введите название задачи:", cancellationToken: ct);
@@ -76,19 +76,17 @@ namespace ToDoListBot.TelegramBot.Scenarios
 
                         context.Data["Deadline"] = deadline;
 
-                        // Показываем выбор списка (как на втором скрине)
+                        // выбор списка
                         var lists = await _toDoListService.GetUserListsAsync(user.UserId, ct);
 
                         var sb = new StringBuilder("Выберите список:\n\n");
                         var buttons = new List<List<InlineKeyboardButton>>();
 
-                        // Кнопка "Без списка"
                         buttons.Add(new List<InlineKeyboardButton>
                         {
                             InlineKeyboardButton.WithCallbackData("Без списка", "addtask|none")
                         });
 
-                        // Списки
                         foreach (var list in lists)
                         {
                             buttons.Add(new List<InlineKeyboardButton>
@@ -101,7 +99,7 @@ namespace ToDoListBot.TelegramBot.Scenarios
 
                         await bot.SendMessage(chatId, sb.ToString(), replyMarkup: keyboard, cancellationToken: ct);
 
-                        return ScenarioResult.Completed; // сценарий завершается, дальше callback
+                        return ScenarioResult.Transition;   // ← продолжаем сценарий
                     }
                     else
                     {
@@ -110,7 +108,7 @@ namespace ToDoListBot.TelegramBot.Scenarios
                     }
 
                 default:
-                    await bot.SendMessage(chatId, "Неизвестный шаг. Сценарий завершён.", cancellationToken: ct);
+                    await bot.SendMessage(chatId, "Неизвестный шаг сценария.", cancellationToken: ct);
                     return ScenarioResult.Completed;
             }
         }

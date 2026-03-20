@@ -14,19 +14,21 @@ namespace ToDoListBot.TelegramBot.Scenarios
         private readonly IUserService _userService;
         private readonly IToDoListService _toDoListService;
 
+
         public AddListScenario(IUserService userService, IToDoListService toDoListService)
         {
             _userService = userService;
             _toDoListService = toDoListService;
         }
 
+
         public bool CanHandle(ScenarioType scenario) => scenario == ScenarioType.AddList;
 
         public async Task<ScenarioResult> HandleMessageAsync(
-            ITelegramBotClient bot,
-            ScenarioContext context,
-            Message message,
-            CancellationToken ct)
+          ITelegramBotClient bot,
+          ScenarioContext context,
+          Message message,
+          CancellationToken ct)
         {
             var chatId = message.Chat.Id;
             var text = message.Text?.Trim();
@@ -34,11 +36,25 @@ namespace ToDoListBot.TelegramBot.Scenarios
             if (string.IsNullOrEmpty(text))
                 return ScenarioResult.Processed;
 
+            // Получаем пользователя из контекста или из сервиса
+            if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
+            {
+                // Если пользователя нет в контексте — пытаемся получить
+                user = await _userService.GetUserAsync(message.From?.Id ?? context.UserId ?? 0, ct);
+
+                if (user == null)
+                {
+                    await bot.SendMessage(chatId, "Ошибка: пользователь не найден. Начните с /start", cancellationToken: ct);
+                    return ScenarioResult.Completed;
+                }
+
+                context.Data["User"] = user;
+            }
+
             switch (context.CurrentStep)
             {
                 case null:
                     context.CurrentStep = "Name";
-                    context.Data["User"] = await _userService.GetUserAsync(message.From.Id, ct);
                     await bot.SendMessage(chatId, "Введите название нового списка (макс. 10 символов):", cancellationToken: ct);
                     return ScenarioResult.Transition;
 
@@ -49,20 +65,13 @@ namespace ToDoListBot.TelegramBot.Scenarios
                         return ScenarioResult.Processed;
                     }
 
-                    var user = context.Data["User"] as ToDoUser;
-                    if (user == null)
-                    {
-                        await bot.SendMessage(chatId, "Ошибка: пользователь не найден.", cancellationToken: ct);
-                        return ScenarioResult.Completed;
-                    }
-
-                    var list = await _toDoListService.AddAsync(user, text, ct);
+                    var newList = await _toDoListService.AddAsync(user, text, ct);
 
                     await bot.SendMessage(chatId,
-                        $"Список \"{text}\" успешно создан! (ID: {list.Id})",
+                        $"Список \"{text}\" успешно создан! (ID: {newList.Id})",
                         cancellationToken: ct);
 
-                    return ScenarioResult.Completed;   // ← важно! завершаем сценарий
+                    return ScenarioResult.Completed;
 
                 default:
                     await bot.SendMessage(chatId, "Неизвестный шаг. Сценарий завершён.", cancellationToken: ct);
