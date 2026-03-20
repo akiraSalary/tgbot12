@@ -25,21 +25,35 @@ namespace ToDoListBot.TelegramBot.Scenarios
         public async Task<ScenarioResult> HandleMessageAsync(
             ITelegramBotClient bot,
             ScenarioContext context,
-            Message message,
+            Message? message,
             CancellationToken ct)
         {
-            var chatId = message.Chat.Id;
-            var text = message.Text?.Trim();
+            long chatId = context.UserId ?? (message?.Chat.Id ?? 0);
+            string? text = message?.Text?.Trim();
 
-            if (string.IsNullOrEmpty(text))
-                return ScenarioResult.Processed;
+            // Надёжно получаем пользователя
+            if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
+            {
+                user = await _userService.GetUserAsync(context.UserId ?? 0, ct);
+                if (user == null)
+                {
+                    await bot.SendMessage(chatId, "Ошибка: пользователь не найден. Начните с /start", cancellationToken: ct);
+                    return ScenarioResult.Completed;
+                }
+                context.Data["User"] = user;
+            }
+
+            // Получаем ListId (он уже сохранён при нажатии кнопки "Добавить")
+            if (!context.Data.TryGetValue("ListId", out var listIdObj) || listIdObj is not Guid listId)
+            {
+                await bot.SendMessage(chatId, "Ошибка: список не найден.", cancellationToken: ct);
+                return ScenarioResult.Completed;
+            }
 
             switch (context.CurrentStep)
             {
                 case null:
                     context.CurrentStep = "Name";
-                    context.Data["User"] = await _userService.GetUserAsync(message.From.Id, ct);
-                    // ListId уже должен быть в Data (передаётся при запуске сценария)
                     await bot.SendMessage(chatId, "Введите название задачи для этого списка:", cancellationToken: ct);
                     return ScenarioResult.Transition;
 
@@ -58,30 +72,16 @@ namespace ToDoListBot.TelegramBot.Scenarios
                 case "Deadline":
                     if (DateTime.TryParseExact(text, "dd.MM.yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime deadline))
                     {
-                        if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
-                        {
-                            await bot.SendMessage(chatId, "Ошибка: пользователь не найден.", cancellationToken: ct);
-                            return ScenarioResult.Completed;
-                        }
+                        var name = context.Data["Name"] as string ?? "Без названия";
 
-                        if (!context.Data.TryGetValue("Name", out var nameObj) || nameObj is not string name || string.IsNullOrWhiteSpace(name))
-                        {
-                            await bot.SendMessage(chatId, "Ошибка: название задачи не найдено.", cancellationToken: ct);
-                            return ScenarioResult.Completed;
-                        }
-
-                        if (!context.Data.TryGetValue("ListId", out var listIdObj) || listIdObj is not Guid listId)
-                        {
-                            await bot.SendMessage(chatId, "Ошибка: ID списка не найден.", cancellationToken: ct);
-                            return ScenarioResult.Completed;
-                        }
-
-                        var task = await _toDoService.AddTaskAsync(user, name, listId, ct);  // ← передаём listId
-                        task.SetDeadline(deadline);
+                        var task = await _toDoService.AddTaskAsync(user, name, listId, ct);
+                        task.SetDeadline(deadline);                    // ← сохраняем дедлайн
                         await _toDoService.UpdateTaskAsync(task, ct);
 
                         await bot.SendMessage(chatId,
-                            $"Задача \"{name}\" добавлена в список с дедлайном {deadline:dd.MM.yyyy}! (ID: {task.Id})",
+                            $"Задача \"{name}\" успешно добавлена в список!\n" +
+                            $"Дедлайн: {deadline:dd.MM.yyyy}\n" +
+                            $"ID: {task.Id}",
                             cancellationToken: ct);
 
                         return ScenarioResult.Completed;
@@ -93,7 +93,7 @@ namespace ToDoListBot.TelegramBot.Scenarios
                     }
 
                 default:
-                    await bot.SendMessage(chatId, "Неизвестный шаг. Сценарий завершён.", cancellationToken: ct);
+                    await bot.SendMessage(chatId, "Неизвестный шаг сценария.", cancellationToken: ct);
                     return ScenarioResult.Completed;
             }
         }

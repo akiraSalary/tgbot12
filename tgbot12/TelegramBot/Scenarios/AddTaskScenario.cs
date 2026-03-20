@@ -28,22 +28,31 @@ namespace ToDoListBot.TelegramBot.Scenarios
         public bool CanHandle(ScenarioType scenario) => scenario == ScenarioType.AddTask;
 
         public async Task<ScenarioResult> HandleMessageAsync(
-            ITelegramBotClient bot,
-            ScenarioContext context,
-            Message message,
-            CancellationToken ct)
+    ITelegramBotClient bot,
+    ScenarioContext context,
+    Message? message,
+    CancellationToken ct)
         {
-            var chatId = message.Chat.Id;
-            var text = message.Text?.Trim();
+            long chatId = context.UserId ?? (message?.Chat.Id ?? 0);
+            string? text = message?.Text?.Trim();
 
-            if (string.IsNullOrEmpty(text))
-                return ScenarioResult.Processed;
+            // Надёжно получаем пользователя
+            if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
+            {
+                user = await _userService.GetUserAsync(context.UserId ?? message?.From?.Id ?? 0, ct);
+                if (user == null)
+                {
+                    if (chatId != 0)
+                        await bot.SendMessage(chatId, "Ошибка: пользователь не найден. Начните с /start", cancellationToken: ct);
+                    return ScenarioResult.Completed;
+                }
+                context.Data["User"] = user;
+            }
 
             switch (context.CurrentStep)
             {
-                case null:  // Начало сценария
+                case null: // Начало сценария
                     context.CurrentStep = "Name";
-                    context.Data["User"] = await _userService.GetUserAsync(message.From.Id, ct);
                     await bot.SendMessage(chatId, "Введите название задачи:", cancellationToken: ct);
                     return ScenarioResult.Transition;
 
@@ -62,44 +71,45 @@ namespace ToDoListBot.TelegramBot.Scenarios
                 case "Deadline":
                     if (DateTime.TryParseExact(text, "dd.MM.yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime deadline))
                     {
-                        if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
-                        {
-                            await bot.SendMessage(chatId, "Ошибка: пользователь не найден.", cancellationToken: ct);
-                            return ScenarioResult.Completed;
-                        }
-
                         if (!context.Data.TryGetValue("Name", out var nameObj) || nameObj is not string name || string.IsNullOrWhiteSpace(name))
                         {
                             await bot.SendMessage(chatId, "Ошибка: название задачи не найдено.", cancellationToken: ct);
                             return ScenarioResult.Completed;
                         }
 
-                        context.Data["Deadline"] = deadline;
+                        // Сохраняем данные для callback
+                        UpdateHandler._pendingTasks[user.TelegramUserId] = new UpdateHandler.TaskCreationData
+                        {
+                            Name = name,
+                            Deadline = deadline
+                        };
 
-                        // выбор списка
+                        // Показываем выбор списка
                         var lists = await _toDoListService.GetUserListsAsync(user.UserId, ct);
 
                         var sb = new StringBuilder("Выберите список:\n\n");
-                        var buttons = new List<List<InlineKeyboardButton>>();
 
-                        buttons.Add(new List<InlineKeyboardButton>
-                        {
-                            InlineKeyboardButton.WithCallbackData("Без списка", "addtask|none")
-                        });
+                        var keyboardRows = new List<List<InlineKeyboardButton>>
+                {
+                    new List<InlineKeyboardButton>
+                    {
+                        InlineKeyboardButton.WithCallbackData("⭐ Без списка", "addtask|none")
+                    }
+                };
 
                         foreach (var list in lists)
                         {
-                            buttons.Add(new List<InlineKeyboardButton>
-                            {
-                                InlineKeyboardButton.WithCallbackData(list.Name, $"addtask|{list.Id}")
-                            });
+                            keyboardRows.Add(new List<InlineKeyboardButton>
+                    {
+                        InlineKeyboardButton.WithCallbackData(list.Name, $"addtask|{list.Id}")
+                    });
                         }
 
-                        var keyboard = new InlineKeyboardMarkup(buttons);
+                        var keyboard = new InlineKeyboardMarkup(keyboardRows);
 
                         await bot.SendMessage(chatId, sb.ToString(), replyMarkup: keyboard, cancellationToken: ct);
 
-                        return ScenarioResult.Transition;   // ← продолжаем сценарий
+                        return ScenarioResult.Completed;   // ← Завершаем сценарий
                     }
                     else
                     {
@@ -113,4 +123,8 @@ namespace ToDoListBot.TelegramBot.Scenarios
             }
         }
     }
+    
 }
+    
+    
+

@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using ToDoListBot.Core.Entities;
 using ToDoListBot.Core.Services;
 using ToDoListBot.TelegramBot.Scenarios;
 
@@ -12,10 +14,12 @@ namespace ToDoListBot.TelegramBot.Scenarios
 {
     public class DeleteListScenario : IScenario
     {
+        private readonly IUserService _userService;
         private readonly IToDoListService _toDoListService;
 
-        public DeleteListScenario(IToDoListService toDoListService)
+        public DeleteListScenario(IUserService userService, IToDoListService toDoListService)
         {
+            _userService = userService;
             _toDoListService = toDoListService;
         }
 
@@ -24,47 +28,50 @@ namespace ToDoListBot.TelegramBot.Scenarios
         public async Task<ScenarioResult> HandleMessageAsync(
             ITelegramBotClient bot,
             ScenarioContext context,
-            Message message,
+            Message? message,
             CancellationToken ct)
         {
-            var chatId = message.Chat.Id;
-            var text = message.Text?.Trim().ToLower();
+            long chatId = context.UserId ?? (message?.Chat.Id ?? 0);
 
-            if (context.CurrentStep == null)
+            // Получаем пользователя
+            if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
             {
-                context.CurrentStep = "Approve";
-                var listId = (Guid)context.Data["ListId"];
-                var list = await _toDoListService.GetAsync(listId, ct);
+                user = await _userService.GetUserAsync(context.UserId ?? 0, ct);
+                if (user == null)
+                {
+                    await bot.SendMessage(chatId, "Ошибка: пользователь не найден. Начните с /start", cancellationToken: ct);
+                    return ScenarioResult.Completed;
+                }
+                context.Data["User"] = user;
+            }
 
-                await bot.SendMessage(chatId,
-                    $"Подтверждаете удаление списка **{list?.Name}** и всех его задач?\n\n" +
-                    "✅ Да — удалить\n❌ Нет — отменить",
-                    replyMarkup: new InlineKeyboardMarkup(new[]
+            switch (context.CurrentStep)
+            {
+                case null:
+                    context.CurrentStep = "ChooseList";
+
+                    var lists = await _toDoListService.GetUserListsAsync(user.UserId, ct);
+
+                    var sb = new StringBuilder("Введите список для удаления:\n\n");
+
+                    var keyboardRows = new List<List<InlineKeyboardButton>>();
+
+                    foreach (var list in lists)
                     {
-                        new[]
+                        keyboardRows.Add(new List<InlineKeyboardButton>
                         {
-                            InlineKeyboardButton.WithCallbackData("✅ Да", "yes"),
-                            InlineKeyboardButton.WithCallbackData("❌ Нет", "no")
-                        }
-                    }),
-                    parseMode: ParseMode.Markdown,
-                    cancellationToken: ct);
+                            InlineKeyboardButton.WithCallbackData(list.Name, $"delete_confirm|{list.Id}")
+                        });
+                    }
 
-                return ScenarioResult.Transition;
-            }
+                    var keyboard = new InlineKeyboardMarkup(keyboardRows);
 
-            if (text == "yes" || context.CurrentStep == "Delete")
-            {
-                var listId = (Guid)context.Data["ListId"];
-                await _toDoListService.DeleteAsync(listId, ct);
+                    await bot.SendMessage(chatId, sb.ToString(), replyMarkup: keyboard, cancellationToken: ct);
+                    return ScenarioResult.Transition;
 
-                await bot.SendMessage(chatId, "Список и все его задачи успешно удалены.", cancellationToken: ct);
-                return ScenarioResult.Completed;
-            }
-            else
-            {
-                await bot.SendMessage(chatId, "Удаление отменено.", cancellationToken: ct);
-                return ScenarioResult.Completed;
+                default:
+                    await bot.SendMessage(chatId, "Неизвестный шаг.", cancellationToken: ct);
+                    return ScenarioResult.Completed;
             }
         }
     }
