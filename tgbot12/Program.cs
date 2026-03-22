@@ -133,6 +133,8 @@ namespace ToDoListBot
                 new AddListScenario(userService, toDoListService),
                 new AddTaskToListScenario(userService, todoService),
                 new DeleteListScenario(userService, toDoListService),
+                new DeleteTaskScenario(todoService),
+                //new CompleteTaskScenario(todoService),
             };
 
             var contextRepository = new InMemoryScenarioContextRepository();

@@ -16,6 +16,8 @@ namespace ToDoListBot.Core.Services
         Task UpdateTaskAsync (ToDoItem item, CancellationToken ct = default);
         Task<ToDoItem> AddTaskAsync(ToDoUser user, string name, Guid? listId = null, CancellationToken ct = default);
         Task<IReadOnlyList<ToDoItem>> GetByUserIdAndListAsync(Guid userId, Guid listId, CancellationToken ct = default);
+        Task<ToDoItem?> GetToDoItemAsync(Guid toDoItemId, CancellationToken ct = default);
+        Task<IReadOnlyList<ToDoItem>> GetCompletedTasksAsync(Guid userId, Guid? listId, CancellationToken ct = default);
     }
 
 }

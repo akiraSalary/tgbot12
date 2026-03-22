@@ -160,5 +160,18 @@ namespace ToDoListBot.Infrastructure.DataAccess
             var tasks = await GetAllByUserIdAsync(userId, ct);
             return tasks.Where(predicate).ToList().AsReadOnly();
         }
+
+        public async Task<ToDoItem?> GetToDoItemAsync(Guid toDoItemId, CancellationToken ct = default)
+        {
+            var filePath = Path.Combine(_basePath, $"ToDoItem_{toDoItemId:N}.json");
+
+            if (!File.Exists(filePath))
+                return null;
+
+            var json = await File.ReadAllTextAsync(filePath, ct);
+            return JsonSerializer.Deserialize<ToDoItem>(json, JsonOptions);
+        }
+
+
     }
 }

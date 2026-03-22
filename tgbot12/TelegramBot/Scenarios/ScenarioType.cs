@@ -12,5 +12,6 @@ public enum ScenarioType
     AddTask,
     AddList,
     AddTaskToList,
-    DeleteList
+    DeleteList,
+    DeleteTask,
 }

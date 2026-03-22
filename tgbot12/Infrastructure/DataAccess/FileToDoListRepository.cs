@@ -74,5 +74,7 @@ namespace ToDoListBot.Infrastructure.DataAccess
             var lists = await GetByUserIdAsync(userId, ct);
             return lists.Any(l => string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase));
         }
+
+        
     }
 }

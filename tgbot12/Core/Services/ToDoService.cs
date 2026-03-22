@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.Entities;
 using ToDoListBot.Core.Exceptions;
+using ToDoListBot.TelegramBot.Dto;
 
 namespace ToDoListBot.Core.Services
 {
@@ -105,5 +106,22 @@ namespace ToDoListBot.Core.Services
         {
             await _repository.UpdateAsync(task, ct);
         }
+
+        public async Task<ToDoItem?> GetToDoItemAsync(Guid toDoItemId, CancellationToken ct = default)
+        {
+            return await _repository.GetToDoItemAsync(toDoItemId, ct);
+        }
+
+        public async Task<IReadOnlyList<ToDoItem>> GetCompletedTasksAsync(Guid userId, Guid? listId, CancellationToken ct = default)
+        {
+            var tasks = await _repository.GetActiveByUserIdAsync(userId, ct);
+            return tasks
+                .Where(t => t.State == ToDoItemState.Completed && (listId == null || t.ListId == listId))
+                .ToList()
+                .AsReadOnly();
+        }
+
+
+
     }
 }
