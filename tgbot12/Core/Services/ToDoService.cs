@@ -112,16 +112,52 @@ namespace ToDoListBot.Core.Services
             return await _repository.GetToDoItemAsync(toDoItemId, ct);
         }
 
-        public async Task<IReadOnlyList<ToDoItem>> GetCompletedTasksAsync(Guid userId, Guid? listId, CancellationToken ct = default)
+        public async Task<IReadOnlyList<ToDoItem>> GetUserIdAndListAsync(Guid userId, Guid listId, CancellationToken ct = default)
         {
-            var tasks = await _repository.GetActiveByUserIdAsync(userId, ct);
-            return tasks
-                .Where(t => t.State == ToDoItemState.Completed && (listId == null || t.ListId == listId))
+            var allTasks = await _repository.GetByUserIdAsync(userId, ct);
+
+            // Самая строгая фильтрация только активных
+            return allTasks
+                .Where(t => t.State == ToDoItemState.Active && t.ListId == listId)
                 .ToList()
                 .AsReadOnly();
         }
 
 
+        public async Task<IReadOnlyList<ToDoItem>> GetCompletedTasksAsync(
+            Guid userId,
+            Guid? listId,
+            CancellationToken ct = default)
+        {
+            var allTasks = await _repository.GetAllByUserIdAsync(userId, ct);
+
+            return allTasks
+                .Where(t => t.State == ToDoItemState.Completed &&
+                           (listId == null || t.ListId == listId))
+                .ToList()
+                .AsReadOnly();
+        }
+
+
+        /// <summary>
+        /// Отмечает задачу как выполненную
+        /// </summary>
+        public async Task CompleteTaskAsync(Guid taskId, CancellationToken ct = default)
+        {
+            var item = await _repository.GetByIdAsync(taskId, ct);
+            if (item == null)
+            {
+                throw new InvalidOperationException("Задача не найдена.");
+            }
+
+            if (item.State == ToDoItemState.Completed)
+            {
+                return; 
+            }
+
+            item.Complete();                   
+            await _repository.UpdateAsync(item, ct);
+        }
 
     }
 }

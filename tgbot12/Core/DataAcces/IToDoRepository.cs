@@ -18,5 +18,7 @@ namespace ToDoListBot.Core.DataAccess
         Task<int> CountActiveAsync(Guid userId, CancellationToken ct = default);
         Task<IReadOnlyList<ToDoItem>> FindAsync(Guid userId, Func<ToDoItem, bool> predicate, CancellationToken ct = default);
         Task<ToDoItem?> GetToDoItemAsync(Guid toDoItemId, CancellationToken ct = default);
+        Task<ToDoItem?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        Task<IReadOnlyList<ToDoItem>> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
     }
 }

@@ -20,7 +20,7 @@ public class ToDoItem
         User = user;
         Name = name;
     }
-    
+
     public void Complete()
     {
         if (State == ToDoItemState.Completed)

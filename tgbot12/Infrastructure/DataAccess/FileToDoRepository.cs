@@ -172,6 +172,51 @@ namespace ToDoListBot.Infrastructure.DataAccess
             return JsonSerializer.Deserialize<ToDoItem>(json, JsonOptions);
         }
 
+        public async Task<ToDoItem?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        {
+            var allTasks = await GetAllByUserIdAsync(Guid.Empty, ct); 
+
+            return allTasks.FirstOrDefault(t => t.Id == id);
+        }
+
+        public async Task<IReadOnlyList<ToDoItem>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
+        {
+            var allItems = await LoadAllAsync(ct);
+
+            return allItems
+                .Where(t => t.User?.UserId == userId)    
+                .ToList()
+                .AsReadOnly();
+        }
+
+      
+        private async Task<IReadOnlyList<ToDoItem>> LoadAllAsync(CancellationToken ct = default)
+        {
+            var tasks = new List<ToDoItem>();
+
+            
+            var directory = new DirectoryInfo("Tasks");   
+
+            if (!directory.Exists)
+                return tasks.AsReadOnly();
+
+            foreach (var file in directory.GetFiles("*.json"))
+            {
+                try
+                {
+                    var json = await File.ReadAllTextAsync(file.FullName, ct);
+                    var task = JsonSerializer.Deserialize<ToDoItem>(json, JsonOptions);
+                    if (task != null)
+                        tasks.Add(task);
+                }
+                catch
+                {
+                    
+                }
+            }
+
+            return tasks.AsReadOnly();
+        }
 
     }
 }

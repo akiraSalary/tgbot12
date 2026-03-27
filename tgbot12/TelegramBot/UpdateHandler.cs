@@ -302,14 +302,18 @@ namespace ToDoListBot.TelegramBot
                             break;
                         }
 
-                        var allTasks = await _toDoService.GetByUserIdAndListAsync(user.UserId, listDto.ToDoListId.Value, ct);
+                        var allTasks = await _toDoService.GetByUserIdAndListAsync(
+                            user.UserId,
+                            listDto.ToDoListId.Value,
+                            ct);
+
                         var pagedTasks = allTasks.GetBatch(_pageSize, listDto.Page).ToList();
 
                         var sb = new StringBuilder("Активные задачи:\n\n");
                         if (pagedTasks.Count == 0)
                             sb.AppendLine("В этом списке пока нет активных задач.");
 
-                        var taskButtons = pagedTasks.Select(t =>
+                        var taskButtons = allTasks.Select(t =>
                             new KeyValuePair<string, string>(
                                 t.Name,
                                 new ToDoItemCallbackDto { Action = "showtask", ToDoItemId = t.Id }.ToString()
@@ -317,7 +321,6 @@ namespace ToDoListBot.TelegramBot
 
                         var keyboard = BuildPagedButtons(taskButtons, listDto);
 
-                        // Кнопка "Посмотреть выполненные" в самом низу
                         var finalKeyboard = new InlineKeyboardMarkup(
                             keyboard.InlineKeyboard.Concat(new[]
                             {
@@ -325,78 +328,144 @@ namespace ToDoListBot.TelegramBot
             {
                 InlineKeyboardButton.WithCallbackData(
                     "✅ Посмотреть выполненные",
-                    new PagedListCallbackDto { Action = "show_completed", ToDoListId = listDto.ToDoListId, Page = 0 }.ToString())
+                    new PagedListCallbackDto
+                    {
+                        Action = "show_completed",
+                        ToDoListId = listDto.ToDoListId,
+                        Page = 0
+                    }.ToString())
             }
                             }).ToArray()
                         );
 
-                        await _botClient.EditMessageText(chatId, messageId, sb.ToString(), replyMarkup: finalKeyboard, parseMode: ParseMode.Markdown, cancellationToken: ct);
-                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: ct);
-                        break;
-
-
-
-
-
-
-                    // Показ подробной информации о задаче + кнопки Выполнить / Удалить
-                    case "showtask":
-                        var showDto = ToDoItemCallbackDto.FromString(callbackQuery.Data ?? "");
-
-                        var task = await _toDoService.GetToDoItemAsync(showDto.ToDoItemId, ct);
-
-                        if (task == null)
-                        {
-                            await _botClient.EditMessageText(chatId, messageId, "Задача не найдена.", cancellationToken: ct);
-                            break;
-                        }
-
-                        var info = new StringBuilder();
-                        info.AppendLine($"**{task.Name}**");
-                        if (task.Deadline.HasValue)
-                            info.AppendLine($"Срок выполнения: {task.Deadline:dd.MM.yyyy HH:mm}");
-                        info.AppendLine($"Время создания: {task.CreatedAt:dd.MM.yyyy HH:mm:ss}");
-
-                        var buttons = new InlineKeyboardMarkup(new[]
-                        {
-        new[]
-        {
-            InlineKeyboardButton.WithCallbackData(
-                "✅ Выполнить",
-                new ToDoItemCallbackDto { Action = "completetask", ToDoItemId = task.Id }.ToString()),
-
-            InlineKeyboardButton.WithCallbackData(
-                "❌ Удалить",
-                new ToDoItemCallbackDto { Action = "deletetask", ToDoItemId = task.Id }.ToString())
-        }
-    });
-
                         await _botClient.EditMessageText(
-                            chatId,
-                            messageId,
-                            info.ToString(),
-                            replyMarkup: buttons,
+                            chatId, messageId, sb.ToString(),
+                            replyMarkup: finalKeyboard,
                             parseMode: ParseMode.Markdown,
                             cancellationToken: ct);
 
                         await _botClient.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: ct);
                         break;
 
-                    // Выполнение задачи
+                    case "show_completed":
+                        var completedDto = PagedListCallbackDto.FromString(callbackQuery.Data ?? "");
+
+                        var completedTasks = await _toDoService.GetCompletedTasksAsync(
+                            user.UserId, completedDto.ToDoListId, ct);
+
+                        var pagedCompleted = completedTasks.GetBatch(_pageSize, completedDto.Page).ToList();
+
+                        var sbCompleted = new StringBuilder("Выполненные задачи:\n\n");
+
+                        if (pagedCompleted.Count == 0)
+                        {
+                            sbCompleted.AppendLine("Задач нет");
+                        }
+
+                        var completedButtons = pagedCompleted.Select(t =>
+                            new KeyValuePair<string, string>(
+                                t.Name,
+                                new ToDoItemCallbackDto { Action = "showtask", ToDoItemId = t.Id }.ToString()
+                            )).ToList();
+
+                        var keyboardCompleted = BuildPagedButtons(completedButtons, completedDto);
+
+                        await _botClient.EditMessageText(
+                            chatId,
+                            messageId,
+                            sbCompleted.ToString(),
+                            replyMarkup: keyboardCompleted,
+                            parseMode: ParseMode.Markdown,
+                            cancellationToken: ct);
+
+                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: ct);
+                        break;
+
+
+
+
+                    case "showtask":
+                        var taskDto = ToDoItemCallbackDto.FromString(callbackQuery.Data ?? "");
+
+                        var task = await _toDoService.GetToDoItemAsync(taskDto.ToDoItemId, ct);
+                        if (task == null)
+                        {
+                            await _botClient.EditMessageText(chatId, messageId, "Задача не найдена.", cancellationToken: ct);
+                            break;
+                        }
+
+                        var info = new StringBuilder($"**{task.Name}**\n\n");
+
+                        if (task.Deadline.HasValue)
+                            info.AppendLine($"Срок: {task.Deadline:dd.MM.yyyy HH:mm}");
+
+                        info.AppendLine($"Время создания: {task.CreatedAt:dd.MM.yyyy HH:mm:ss}");
+
+                        if (task.State == ToDoItemState.Completed && task.StateChangedAt.HasValue)
+                        {
+                            info.AppendLine($"Время выполнения: {task.StateChangedAt:dd.MM.yyyy HH:mm:ss}");
+                        }
+
+                        if (task.State == ToDoItemState.Completed)
+                        {
+                            await _botClient.EditMessageText(
+                                chatId,
+                                messageId,
+                                info.ToString(),
+                                parseMode: ParseMode.Markdown,
+                                cancellationToken: ct);
+                        }
+                        else
+                        {
+                            
+                            var buttons = new InlineKeyboardMarkup(new[]
+                            {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("✅ Выполнить",
+                    new ToDoItemCallbackDto { Action = "completetask", ToDoItemId = task.Id }.ToString()),
+
+                InlineKeyboardButton.WithCallbackData("❌ Удалить",
+                    new ToDoItemCallbackDto { Action = "deletetask", ToDoItemId = task.Id }.ToString())
+            }
+        });
+
+                            await _botClient.EditMessageText(
+                                chatId,
+                                messageId,
+                                info.ToString(),
+                                replyMarkup: buttons,
+                                parseMode: ParseMode.Markdown,
+                                cancellationToken: ct);
+                        }
+
+                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: ct);
+                        break;
+
                     case "completetask":
                         var completeDto = ToDoItemCallbackDto.FromString(callbackQuery.Data ?? "");
-                        var completePsrts = new[] {"completetask", completeDto.ToDoItemId.ToString() };
 
+                        // Выполняем задачу
                         await HandleCompleteTaskAsync(
                             callbackQuery.Message?.Chat ?? new Chat { Id = chatId },
-                            completePsrts,
+                            new[] { "completetask", completeDto.ToDoItemId.ToString() },
                             ct);
 
+                        // Убираем кнопки "Выполнить / Удалить"
                         await _botClient.EditMessageReplyMarkup(
                             chatId: chatId,
                             messageId: messageId,
                             replyMarkup: null,
                             cancellationToken: ct);
+
+                        await _botClient.AnswerCallbackQuery(callbackQuery.Id, "✅ Задача выполнена", cancellationToken: ct);
+
+                        // Просто показываем сообщение пользователю (без авто-обновления списка)
+                        await _botClient.SendMessage(chatId,
+                            "✅ Задача выполнена!\n\n" +
+                            "Нажми кнопку «✅ Посмотреть выполненные» ниже или команду /show",
+                            cancellationToken: ct);
+
                         break;
 
                     // Удаление задачи
@@ -731,10 +800,14 @@ namespace ToDoListBot.TelegramBot
         private static readonly int _pageSize = 5;
 
         private InlineKeyboardMarkup BuildPagedButtons(
-    IReadOnlyList<KeyValuePair<string, string>> callbackData,
-    PagedListCallbackDto listDto)
+     IReadOnlyList<KeyValuePair<string, string>> callbackData,
+     PagedListCallbackDto listDto)
         {
-            var totalPages = (int)Math.Ceiling(callbackData.Count / (double)_pageSize);
+            // callbackData — это ВСЕ задачи (не paged!)
+            var totalCount = callbackData.Count;
+            var totalPages = (int)Math.Ceiling(totalCount / (double)_pageSize);
+
+            // Берём только текущую страницу для кнопок
             var currentPageButtons = callbackData
                 .Skip(listDto.Page * _pageSize)
                 .Take(_pageSize)
@@ -748,8 +821,7 @@ namespace ToDoListBot.TelegramBot
 
             if (listDto.Page > 0)
             {
-                navigationRow.Add(InlineKeyboardButton.WithCallbackData(
-                    "⬅️",
+                navigationRow.Add(InlineKeyboardButton.WithCallbackData("⬅️",
                     new PagedListCallbackDto
                     {
                         Action = listDto.Action,
@@ -760,8 +832,7 @@ namespace ToDoListBot.TelegramBot
 
             if (listDto.Page < totalPages - 1)
             {
-                navigationRow.Add(InlineKeyboardButton.WithCallbackData(
-                    "➡️",
+                navigationRow.Add(InlineKeyboardButton.WithCallbackData("➡️",
                     new PagedListCallbackDto
                     {
                         Action = listDto.Action,
@@ -775,12 +846,6 @@ namespace ToDoListBot.TelegramBot
 
             return new InlineKeyboardMarkup(currentPageButtons);
         }
-
-
-
-
-
-
 
 
 
