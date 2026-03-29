@@ -296,33 +296,59 @@ namespace ToDoListBot.TelegramBot
                     case "show":
                         var listDto = PagedListCallbackDto.FromString(callbackQuery.Data ?? "");
 
+
+                        // bez spiska
                         if (listDto.ToDoListId == null)
                         {
-                            await ShowListsAsync(chatId, ct);
+                            var tasksWithoutList = await _toDoService.GetTasksWithoutListAsync(user.UserId, ct);
+
+                            var pagedTasks = tasksWithoutList.GetBatch(_pageSize, listDto.Page).ToList();
+
+                            var sb = new StringBuilder("Задачи без списка:\n\n");
+                            if (pagedTasks.Count == 0)
+                                sb.AppendLine("В этом разделе пока нет задач.");
+                            else
+                                sb.AppendLine($"Страница {listDto.Page + 1} из {(int)Math.Ceiling(tasksWithoutList.Count / (double)_pageSize)}");
+
+                            var taskButtons = tasksWithoutList.Select(t =>
+                                new KeyValuePair<string, string>(
+                                    t.Name,
+                                    new ToDoItemCallbackDto { Action = "showtask", ToDoItemId = t.Id }.ToString()
+                                )).ToList();
+
+                            var keyboard = BuildPagedButtons(taskButtons, listDto);
+
+                            await _botClient.EditMessageText(
+                                chatId,
+                                messageId,
+                                sb.ToString(),
+                                replyMarkup: keyboard,
+                                parseMode: ParseMode.Markdown,
+                                cancellationToken: ct);
+
+                            await _botClient.AnswerCallbackQuery(callbackQuery.Id, cancellationToken: ct);
                             break;
                         }
 
-                        var allTasks = await _toDoService.GetByUserIdAndListAsync(
-                            user.UserId,
-                            listDto.ToDoListId.Value,
-                            ct);
+                        // s listId
+                        var allTasks = await _toDoService.GetByUserIdAndListAsync(user.UserId, listDto.ToDoListId.Value, ct);
 
-                        var pagedTasks = allTasks.GetBatch(_pageSize, listDto.Page).ToList();
+                        var pagedTasksList = allTasks.GetBatch(_pageSize, listDto.Page).ToList();
 
-                        var sb = new StringBuilder("Активные задачи:\n\n");
-                        if (pagedTasks.Count == 0)
-                            sb.AppendLine("В этом списке пока нет активных задач.");
+                        var sbList = new StringBuilder("Активные задачи:\n\n");
+                        if (pagedTasksList.Count == 0)
+                            sbList.AppendLine("В этом списке пока нет активных задач.");
 
-                        var taskButtons = allTasks.Select(t =>
+                        var taskButtonsList = allTasks.Select(t =>
                             new KeyValuePair<string, string>(
                                 t.Name,
                                 new ToDoItemCallbackDto { Action = "showtask", ToDoItemId = t.Id }.ToString()
                             )).ToList();
 
-                        var keyboard = BuildPagedButtons(taskButtons, listDto);
+                        var keyboardList = BuildPagedButtons(taskButtonsList, listDto);
 
                         var finalKeyboard = new InlineKeyboardMarkup(
-                            keyboard.InlineKeyboard.Concat(new[]
+                            keyboardList.InlineKeyboard.Concat(new[]
                             {
             new[]
             {
@@ -339,7 +365,7 @@ namespace ToDoListBot.TelegramBot
                         );
 
                         await _botClient.EditMessageText(
-                            chatId, messageId, sb.ToString(),
+                            chatId, messageId, sbList.ToString(),
                             replyMarkup: finalKeyboard,
                             parseMode: ParseMode.Markdown,
                             cancellationToken: ct);
@@ -401,11 +427,13 @@ namespace ToDoListBot.TelegramBot
 
                         info.AppendLine($"Время создания: {task.CreatedAt:dd.MM.yyyy HH:mm:ss}");
 
+                        
                         if (task.State == ToDoItemState.Completed && task.StateChangedAt.HasValue)
                         {
-                            info.AppendLine($"Время выполнения: {task.StateChangedAt:dd.MM.yyyy HH:mm:ss}");
+                            info.AppendLine($"**Время выполнения: {task.StateChangedAt:dd.MM.yyyy HH:mm:ss}**");
                         }
 
+                        
                         if (task.State == ToDoItemState.Completed)
                         {
                             await _botClient.EditMessageText(
@@ -451,7 +479,7 @@ namespace ToDoListBot.TelegramBot
                             new[] { "completetask", completeDto.ToDoItemId.ToString() },
                             ct);
 
-                        // Убираем кнопки "Выполнить / Удалить"
+                        
                         await _botClient.EditMessageReplyMarkup(
                             chatId: chatId,
                             messageId: messageId,
@@ -460,7 +488,7 @@ namespace ToDoListBot.TelegramBot
 
                         await _botClient.AnswerCallbackQuery(callbackQuery.Id, "✅ Задача выполнена", cancellationToken: ct);
 
-                        // Просто показываем сообщение пользователю (без авто-обновления списка)
+                       
                         await _botClient.SendMessage(chatId,
                             "✅ Задача выполнена!\n\n" +
                             "Нажми кнопку «✅ Посмотреть выполненные» ниже или команду /show",
@@ -553,7 +581,7 @@ namespace ToDoListBot.TelegramBot
                             UserId = userId
                         };
 
-                        // Получаем пользователя (другое имя переменной!)
+                        
                         var userForTask = await _userService.GetUserAsync(userId, ct);
                         if (userForTask != null)
                         {
@@ -590,7 +618,7 @@ namespace ToDoListBot.TelegramBot
 
 
                         case "delete_confirm":
-    var listIdToDelete = dto.ToDoListId!.Value;   // ! - мы уверены, что здесь есть ID
+    var listIdToDelete = dto.ToDoListId!.Value;   
 
                         var list = await _toDoListService.GetAsync(listIdToDelete, ct);
 
@@ -803,11 +831,11 @@ namespace ToDoListBot.TelegramBot
      IReadOnlyList<KeyValuePair<string, string>> callbackData,
      PagedListCallbackDto listDto)
         {
-            // callbackData — это ВСЕ задачи (не paged!)
+            
             var totalCount = callbackData.Count;
             var totalPages = (int)Math.Ceiling(totalCount / (double)_pageSize);
 
-            // Берём только текущую страницу для кнопок
+           
             var currentPageButtons = callbackData
                 .Skip(listDto.Page * _pageSize)
                 .Take(_pageSize)
@@ -866,9 +894,11 @@ namespace ToDoListBot.TelegramBot
 
             // Кнопка "Без списка"
             keyboardRows.Add(new List<InlineKeyboardButton>
-    {
-        InlineKeyboardButton.WithCallbackData("⭐ Без списка", "addtask|none")
-    });
+               {
+                  InlineKeyboardButton.WithCallbackData(
+                  "⭐ Без списка",
+                   new PagedListCallbackDto { Action = "show", ToDoListId = null, Page = 0 }.ToString())
+               });
 
             // Кнопки с названиями списков
             foreach (var list in lists)

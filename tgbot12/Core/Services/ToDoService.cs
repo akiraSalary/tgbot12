@@ -69,11 +69,11 @@ namespace ToDoListBot.Core.Services
             await _repository.AddAsync(item, ct);
             return item;
         }
-         
+
         public async Task<IReadOnlyList<ToDoItem>> GetByUserIdAndListAsync(Guid userId, Guid listId, CancellationToken ct = default)
         {
             var allTasks = await _repository.GetAllByUserIdAsync(userId, ct);
-            var filtered = allTasks.Where(t => t.ListId == listId).ToList();
+            var filtered = allTasks.Where(t => t.ListId == listId && t.State != ToDoItemState.Completed).ToList();
             return filtered.AsReadOnly();
         }
 
@@ -112,15 +112,18 @@ namespace ToDoListBot.Core.Services
             return await _repository.GetToDoItemAsync(toDoItemId, ct);
         }
 
-        public async Task<IReadOnlyList<ToDoItem>> GetUserIdAndListAsync(Guid userId, Guid listId, CancellationToken ct = default)
+        public async Task<IReadOnlyList<ToDoItem>> GetUserIdAndListAsync(
+          Guid userId,
+          Guid listId,
+          CancellationToken ct = default)
         {
             var allTasks = await _repository.GetByUserIdAsync(userId, ct);
 
-            // Самая строгая фильтрация только активных
-            return allTasks
-                .Where(t => t.State == ToDoItemState.Active && t.ListId == listId)
-                .ToList()
-                .AsReadOnly();
+            var filtered = allTasks
+                .Where(t => t.ListId == listId && t.State != ToDoItemState.Completed)
+                .ToList();
+
+            return filtered.AsReadOnly();
         }
 
 
@@ -146,18 +149,27 @@ namespace ToDoListBot.Core.Services
         {
             var item = await _repository.GetByIdAsync(taskId, ct);
             if (item == null)
-            {
                 throw new InvalidOperationException("Задача не найдена.");
-            }
 
             if (item.State == ToDoItemState.Completed)
-            {
-                return; 
-            }
+                return;
 
-            item.Complete();                   
+            item.Complete();           
             await _repository.UpdateAsync(item, ct);
         }
+
+
+        public async Task<IReadOnlyList<ToDoItem>> GetTasksWithoutListAsync(Guid userId, CancellationToken ct = default)
+        {
+            var allTasks = await _repository.GetAllByUserIdAsync(userId, ct);
+
+            return allTasks
+                .Where(t => t.State == ToDoItemState.Active && t.ListId == null)
+                .OrderBy(t => t.CreatedAt)
+                .ToList()
+                .AsReadOnly();
+        }
+
 
     }
 }

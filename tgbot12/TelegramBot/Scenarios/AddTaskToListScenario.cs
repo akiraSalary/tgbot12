@@ -75,7 +75,7 @@ namespace ToDoListBot.TelegramBot.Scenarios
                         var name = context.Data["Name"] as string ?? "Без названия";
 
                         var task = await _toDoService.AddTaskAsync(user, name, listId, ct);
-                        task.SetDeadline(deadline);                    // ← сохраняем дедлайн
+                        task.SetDeadline(deadline);                    
                         await _toDoService.UpdateTaskAsync(task, ct);
 
                         await bot.SendMessage(chatId,
