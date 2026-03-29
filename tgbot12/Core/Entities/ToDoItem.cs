@@ -10,17 +10,21 @@ public class ToDoItem
     public ToDoUser User { get; init; } = null!;
     public string Name { get; init; } = string.Empty;
     public Guid? ListId { get; set; } = null;
-    
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     [JsonInclude]
-    public ToDoItemState State { get; private set; } = ToDoItemState.Active;
-    public DateTime? StateChangedAt { get; private set; }
-    public ToDoItem(ToDoUser user, string name)
+    public ToDoItemState State { get; set; } = ToDoItemState.Active;
+    public DateTime? Deadline { get; set; }
+    [JsonInclude]
+    public DateTime? StateChangedAt { get; set; }
+    public ToDoItem(ToDoUser user, string name, Guid? listId = null, DateTime? deadline = null)
     {
         User = user;
         Name = name;
+        ListId = listId;
+        Deadline = deadline;
     }
-
+    
+  
     public void Complete()
     {
         if (State == ToDoItemState.Completed)
@@ -29,7 +33,7 @@ public class ToDoItem
         State = ToDoItemState.Completed;
         StateChangedAt = DateTime.UtcNow;
     }
-    public DateTime? Deadline { get; private set; }
+ 
 
     public void SetDeadline(DateTime deadline)
     {

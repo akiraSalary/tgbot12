@@ -31,7 +31,7 @@ namespace ToDoListBot.TelegramBot.Scenarios
             long chatId = context.UserId ?? (message?.Chat.Id ?? 0);
             string? text = message?.Text?.Trim();
 
-            // Надёжно получаем пользователя
+            
             if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
             {
                 user = await _userService.GetUserAsync(context.UserId ?? 0, ct);
@@ -43,7 +43,7 @@ namespace ToDoListBot.TelegramBot.Scenarios
                 context.Data["User"] = user;
             }
 
-            // Получаем ListId (он уже сохранён при нажатии кнопки "Добавить")
+            
             if (!context.Data.TryGetValue("ListId", out var listIdObj) || listIdObj is not Guid listId)
             {
                 await bot.SendMessage(chatId, "Ошибка: список не найден.", cancellationToken: ct);

@@ -36,10 +36,10 @@ namespace ToDoListBot.TelegramBot.Scenarios
             if (string.IsNullOrEmpty(text))
                 return ScenarioResult.Processed;
 
-            // Получаем пользователя из контекста или из сервиса
+            
             if (!context.Data.TryGetValue("User", out var userObj) || userObj is not ToDoUser user)
             {
-                // Если пользователя нет в контексте — пытаемся получить
+                
                 user = await _userService.GetUserAsync(message.From?.Id ?? context.UserId ?? 0, ct);
 
                 if (user == null)
