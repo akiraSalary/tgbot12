@@ -10,7 +10,6 @@ namespace ToDoListBot.Core.Entities
         public ToDoUser User { get; init; } = null!;
         public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
-        // Если нужно хранить задачи внутри списка
         public List<ToDoItem> Items { get; private set; } = new();
 
         public ToDoList(ToDoUser user, string name)

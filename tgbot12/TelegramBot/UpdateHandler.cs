@@ -1095,7 +1095,7 @@ namespace ToDoListBot.TelegramBot
         }
 
            
-    
+      // скрипты лежат в папке проекта
 
        
 
