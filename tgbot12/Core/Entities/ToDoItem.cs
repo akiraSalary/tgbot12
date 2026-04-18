@@ -6,11 +6,11 @@ namespace ToDoListBot.Core.Entities;
 public class ToDoItem
 
 {
-    public Guid Id { get; init; } = Guid.NewGuid();
-    public ToDoUser User { get; init; } = null!;
-    public string Name { get; init; } = string.Empty;
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public ToDoUser User { get; set; } = null!;
+    public string Name { get; set; } = string.Empty;
     public Guid? ListId { get; set; } = null;
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [JsonInclude]
     public ToDoItemState State { get; set; } = ToDoItemState.Active;
     public DateTime? Deadline { get; set; }

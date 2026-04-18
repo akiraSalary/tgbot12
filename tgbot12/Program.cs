@@ -116,10 +116,18 @@ namespace ToDoListBot
             Console.WriteLine($"Задачи: {tasksPath}");
 
             // repos
-            var userRepo = new FileUserRepository(usersPath);
-            var todoRepo = new FileToDoRepository(tasksPath);
+            //var userRepo = new FileUserRepository(usersPath);
+            //var todoRepo = new FileToDoRepository(tasksPath);
 
-            var toDoListRepo = new FileToDoListRepository(tasksPath);
+            // пример
+            var connString = "Host=localhost;Database=todo;Username=postgres;Password=secret";
+            var factory = new DataContextFactory(connString);
+            var userRepo = new SqlUserRepository(factory);
+            var todoRepo = new SqlToDoRepository(factory);
+            var toDoListRepo = new SqlToDoListRepository(factory);
+
+
+            //var toDoListRepo = new FileToDoListRepository(tasksPath);
             var toDoListService = new ToDoListService(toDoListRepo);
 
             // servs

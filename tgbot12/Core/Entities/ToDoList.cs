@@ -5,10 +5,10 @@ namespace ToDoListBot.Core.Entities
 {
     public class ToDoList
     {
-        public Guid Id { get; init; } = Guid.NewGuid();
-        public string Name { get; init; } = string.Empty;
-        public ToDoUser User { get; init; } = null!;
-        public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Name { get; set; } = string.Empty;
+        public ToDoUser User { get; set; } = null!;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public List<ToDoItem> Items { get; private set; } = new();
 
