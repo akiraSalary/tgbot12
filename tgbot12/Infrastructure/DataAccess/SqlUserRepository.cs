@@ -1,13 +1,11 @@
-﻿
-
-
+﻿using LinqToDB;
+using LinqToDB.Async;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using LinqToDB;
-using ToDoListBot.Core.Entities;
-using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.DataAcces.Models;
+using ToDoListBot.Core.DataAccess;
+using ToDoListBot.Core.Entities;
 
 namespace ToDoListBot.Infrastructure.DataAccess
 {
@@ -39,11 +37,12 @@ namespace ToDoListBot.Infrastructure.DataAccess
             if (user == null) throw new ArgumentNullException(nameof(user));
             using var db = _factory.CreateDataContext();
 
-            var exists = await db.ToDoUsers.AnyAsync(u => u.TelegramUserId == user.TelegramUserId, ct);
-            if (exists) return;
+           
+            var existing = await db.ToDoUsers.FirstOrDefaultAsync(u => u.TelegramUserId == user.TelegramUserId, ct);
+            if (existing != null) return;
 
             var model = ModelMapper.MapToModel(user);
-            await db.InsertAsync(model, ct);
+            await db.InsertAsync(model);
         }
     }
 }

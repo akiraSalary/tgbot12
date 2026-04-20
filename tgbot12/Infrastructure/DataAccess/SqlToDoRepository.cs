@@ -1,10 +1,10 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LinqToDB;
+using LinqToDB.Async;
 using ToDoListBot.Core.Entities;
 using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.DataAcces.Models;
@@ -74,7 +74,7 @@ namespace ToDoListBot.Infrastructure.DataAccess
 
             using var db = _factory.CreateDataContext();
             var model = ModelMapper.MapToModel(item);
-            await db.InsertAsync(model, ct);
+            await db.InsertAsync(model);
         }
 
         public async Task UpdateAsync(ToDoItem item, CancellationToken ct = default)
@@ -82,7 +82,7 @@ namespace ToDoListBot.Infrastructure.DataAccess
             if (item == null) throw new ArgumentNullException(nameof(item));
             using var db = _factory.CreateDataContext();
             var model = ModelMapper.MapToModel(item);
-            await db.UpdateAsync(model, ct);
+            await db.UpdateAsync(model);
         }
 
         public async Task DeleteAsync(Guid id, CancellationToken ct = default)
