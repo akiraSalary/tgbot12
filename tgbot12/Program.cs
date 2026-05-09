@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using ToDoListBot.Core.Services;
 using ToDoListBot.Infrastructure.DataAccess;
 using ToDoListBot.TelegramBot;
 using ToDoListBot.TelegramBot.Scenarios;
+using ToDoListBot.BackgroundTasks;
 
 namespace ToDoListBot
 {
@@ -25,7 +27,6 @@ namespace ToDoListBot
             Console.Title = "ToDo Telegram Bot";
 
             // token
-
             string? token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
 
             if (string.IsNullOrWhiteSpace(token))
@@ -43,18 +44,23 @@ namespace ToDoListBot
 
             _botClient = new TelegramBotClient(token);
 
-         
             var me = await _botClient.GetMe();
             Console.WriteLine($"Бот запущен: @{me.Username} ({me.FirstName})");
             await SetMyCommandsAsync();
-            var handler = CreateUpdateHandler();
+
+            // Создаём обработчик и связанные объекты (включая репозиторий контекстов и раннер фоновых задач)
+            var (handler, contextRepository, backgroundRunner) = CreateUpdateHandler();
+
             var receiverOptions = new ReceiverOptions
             {
-                AllowedUpdates = Array.Empty<UpdateType>(), 
-                DropPendingUpdates = true 
+                AllowedUpdates = Array.Empty<UpdateType>(),
+                DropPendingUpdates = true
             };
 
             using var cts = new CancellationTokenSource();
+
+            // Запускаем фоновые задачи до запуска получения обновлений
+            backgroundRunner.StartTasks(cts.Token);
 
             _botClient.StartReceiving(
                 updateHandler: handler.HandleUpdateAsync,
@@ -64,7 +70,6 @@ namespace ToDoListBot
 
             Console.WriteLine("Нажмите клавишу A для выхода...");
 
-            
             while (!cts.Token.IsCancellationRequested)
             {
                 if (Console.KeyAvailable)
@@ -72,6 +77,7 @@ namespace ToDoListBot
                     var key = Console.ReadKey(intercept: true);
                     if (char.ToLowerInvariant(key.KeyChar) == 'a')
                     {
+                        // Останавливаем при нажатии A
                         cts.Cancel();
                         Console.WriteLine("Бот остановлен пользователем (A).");
                         break;
@@ -86,14 +92,25 @@ namespace ToDoListBot
                     }
                 }
 
-                await Task.Delay(100, cts.Token);
+                await Task.Delay(100, cts.Token).ContinueWith(_ => { });
             }
+
+            // Останавливаем фоновые задачи и очищаем ресурсы
+            try
+            {
+                await backgroundRunner.StopTasksAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // игнорируем ошибки при остановке фоновых задач
+            }
+            backgroundRunner.Dispose();
 
             Console.WriteLine("Программа завершена.");
             await Task.Delay(1500);
         }
 
-        private static UpdateHandler CreateUpdateHandler()
+        private static (UpdateHandler handler, InMemoryScenarioContextRepository contextRepository, BackgroundTaskRunner backgroundRunner) CreateUpdateHandler()
         {
             string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
@@ -116,18 +133,12 @@ namespace ToDoListBot
             Console.WriteLine($"Задачи: {tasksPath}");
 
             // repos
-            //var userRepo = new FileUserRepository(usersPath);
-            //var todoRepo = new FileToDoRepository(tasksPath);
-
-            // пример
             var connString = "Host=localhost;Database=todo;Username=postgres;Password=secret";
             var factory = new DataContextFactory(connString);
             var userRepo = new SqlUserRepository(factory);
             var todoRepo = new SqlToDoRepository(factory);
             var toDoListRepo = new SqlToDoListRepository(factory);
 
-
-            //var toDoListRepo = new FileToDoListRepository(tasksPath);
             var toDoListService = new ToDoListService(toDoListRepo);
 
             // servs
@@ -142,12 +153,12 @@ namespace ToDoListBot
                 new AddTaskToListScenario(userService, todoService),
                 new DeleteListScenario(userService, toDoListService),
                 new DeleteTaskScenario(todoService),
-                //new CompleteTaskScenario(todoService),
             };
 
+            // Репозиторий контекстов (разделяем с фоновой задачей)
             var contextRepository = new InMemoryScenarioContextRepository();
 
-            return new UpdateHandler(
+            var handler = new UpdateHandler(
                 userService,
                 todoService,
                 reportService,
@@ -158,6 +169,12 @@ namespace ToDoListBot
                 contextRepository,
                 toDoListService
             );
+
+            // Создаём раннер и регистрируем фоновые задачи
+            var backgroundRunner = new BackgroundTaskRunner();
+            backgroundRunner.AddTask(new ResetScenarioBackgroundTask(TimeSpan.FromHours(1), contextRepository, _botClient));
+
+            return (handler, contextRepository, backgroundRunner);
         }
 
         private static async Task SetMyCommandsAsync()
@@ -171,7 +188,7 @@ namespace ToDoListBot
                 new BotCommand { Command = "show",   Description = "Показать только активные задачи" },
                 new BotCommand { Command = "completetask", Description = "Завершить задачу по ID" },
                 new BotCommand { Command = "removetask",   Description = "Удалить задачу по ID" },
-                new BotCommand { Command = "report",  Description = "Статистика по задачам" },
+                new BotCommand { Command = "report",  Description = "Статistika по задачам" },
                 new BotCommand { Command = "find",    Description = "Поиск активных задач по префиксу" }
             };
 

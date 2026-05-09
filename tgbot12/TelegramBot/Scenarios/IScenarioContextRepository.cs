@@ -1,14 +1,17 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
-namespace ToDoListBot.TelegramBot.Scenarios;
-
-public interface IScenarioContextRepository
+namespace ToDoListBot.TelegramBot
 {
-    Task<ScenarioContext?> GetContext(long userId, CancellationToken ct = default);
-    Task SetContext(long userId, ScenarioContext context, CancellationToken ct = default);
-    Task ResetContext(long userId, CancellationToken ct = default);
+    public interface IScenarioContextRepository
+    {
+        Task<ScenarioContext?> GetContext(long telegramUserId, CancellationToken ct);
+        Task SetContext(long telegramUserId, ScenarioContext context, CancellationToken ct);
+        Task ResetContext(long telegramUserId, CancellationToken ct);
+
+        // Новый метод, возвращающий все контексты
+        Task<IReadOnlyList<ScenarioContext>> GetContexts(CancellationToken ct);
+    }
 }

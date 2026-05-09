@@ -1,29 +1,36 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ToDoListBot.TelegramBot.Scenarios
+namespace ToDoListBot.TelegramBot
 {
     public class InMemoryScenarioContextRepository : IScenarioContextRepository
     {
-        private readonly ConcurrentDictionary<long, ScenarioContext> _contexts = new();
+        private readonly ConcurrentDictionary<long, ScenarioContext> _store = new();
 
-        public Task<ScenarioContext?> GetContext(long userId, CancellationToken ct = default)
-        {
-            _contexts.TryGetValue(userId, out var context);
-            return Task.FromResult(context);
-        }
+        public Task<ScenarioContext?> GetContext(long telegramUserId, CancellationToken ct)
+            => Task.FromResult(_store.TryGetValue(telegramUserId, out var ctx) ? ctx : null);
 
-        public Task SetContext(long userId, ScenarioContext context, CancellationToken ct = default)
+        public Task SetContext(long telegramUserId, ScenarioContext context, CancellationToken ct)
         {
-            _contexts[userId] = context;
+            // Устанавливаем UserId в контексте, чтобы фоновые задачи могли знать, кому сбрасывать сценарий
+            context.UserId = telegramUserId;
+            _store[telegramUserId] = context;
             return Task.CompletedTask;
         }
 
-        public Task ResetContext(long userId, CancellationToken ct = default)
+        public Task ResetContext(long telegramUserId, CancellationToken ct)
         {
-            _contexts.TryRemove(userId, out _);
+            _store.TryRemove(telegramUserId, out _);
             return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<ScenarioContext>> GetContexts(CancellationToken ct)
+        {
+            var list = _store.Values.ToList().AsReadOnly();
+            return Task.FromResult((IReadOnlyList<ScenarioContext>)list);
         }
     }
 }
