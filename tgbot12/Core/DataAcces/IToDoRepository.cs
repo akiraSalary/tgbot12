@@ -20,5 +20,6 @@ namespace ToDoListBot.Core.DataAccess
         Task<ToDoItem?> GetToDoItemAsync(Guid toDoItemId, CancellationToken ct = default);
         Task<ToDoItem?> GetByIdAsync(Guid id, CancellationToken ct = default);
         Task<IReadOnlyList<ToDoItem>> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
+        Task<IReadOnlyList<ToDoItem>> GetActiveWithDeadline(Guid userId, DateTime from, DateTime to, CancellationToken ct);
     }
 }

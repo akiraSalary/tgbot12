@@ -10,5 +10,6 @@ namespace ToDoListBot.Core.DataAccess
         Task<ToDoUser?> GetUserAsync(Guid userId, CancellationToken ct = default);
         Task<ToDoUser?> GetByTelegramUserIdAsync(long telegramUserId, CancellationToken ct = default);
         Task AddAsync(ToDoUser user, CancellationToken ct = default);
+        Task<IReadOnlyList<ToDoUser>> GetUsers(CancellationToken ct);
     }
 }

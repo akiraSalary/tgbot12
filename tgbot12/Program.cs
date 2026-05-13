@@ -3,18 +3,18 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-
+using ToDoListBot.BackgroundTasks;
 using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.Services;
+using ToDoListBot.Infrastructure;
 using ToDoListBot.Infrastructure.DataAccess;
 using ToDoListBot.TelegramBot;
 using ToDoListBot.TelegramBot.Scenarios;
-using ToDoListBot.BackgroundTasks;
+using LinqToDB.Data;
 
 namespace ToDoListBot
 {
@@ -175,6 +175,16 @@ namespace ToDoListBot
             backgroundRunner.AddTask(new ResetScenarioBackgroundTask(TimeSpan.FromHours(1), contextRepository, _botClient));
 
             return (handler, contextRepository, backgroundRunner);
+
+
+            var notificationService = new NotificationService(() => new DataConnection("PostgreSQL", connString));
+            var notifTask = new NotificationBackgroundTask(notificationService, _botClient, userRepo);
+            var deadlineTask = new DeadlineBackgroundTask(notificationService, userRepo, todoRepo);
+            var todayTask = new TodayBackgroundTask(notificationService, userRepo, todoRepo);
+
+            backgroundRunner.AddTask(notifTask);
+            backgroundRunner.AddTask(deadlineTask);
+            backgroundRunner.AddTask(todayTask);
         }
 
         private static async Task SetMyCommandsAsync()
