@@ -189,7 +189,16 @@ namespace ToDoListBot.Infrastructure.DataAccess
                 .AsReadOnly();
         }
 
-      
+        public async Task<IReadOnlyList<ToDoItem>> GetActiveWithDeadline(Guid userId, DateTime from, DateTime to, CancellationToken ct = default)
+        {
+            var allActive = await GetActiveByUserIdAsync(userId, ct);
+            var filtered = allActive
+                .Where(t => t.Deadline.HasValue && t.Deadline.Value >= from && t.Deadline.Value <= to)
+                .ToList();
+            return filtered.AsReadOnly();
+        }
+
+
         private async Task<IReadOnlyList<ToDoItem>> LoadAllAsync(CancellationToken ct = default)
         {
             var tasks = new List<ToDoItem>();

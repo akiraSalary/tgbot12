@@ -48,6 +48,29 @@ namespace ToDoListBot.Infrastructure.DataAccess
             return null;
         }
 
+        public async Task<IReadOnlyList<ToDoUser>> GetUsers(CancellationToken ct = default)
+        {
+            var result = new List<ToDoUser>();
+
+            var files = Directory.GetFiles(_basePath, "ToDoUser_*.json");
+            foreach (var file in files)
+            {
+                if (ct.IsCancellationRequested) break;
+                try
+                {
+                    var json = await File.ReadAllTextAsync(file, ct);
+                    var user = System.Text.Json.JsonSerializer.Deserialize<ToDoUser>(json);
+                    if (user != null) result.Add(user);
+                }
+                catch
+                {
+                    // игнорировать повреждённые файлы
+                }
+            }
+
+            return result.AsReadOnly();
+        }
+
         public async Task AddAsync(ToDoUser user, CancellationToken ct = default)
         {
             var existing = await GetByTelegramUserIdAsync(user.TelegramUserId, ct);

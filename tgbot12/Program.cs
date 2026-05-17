@@ -170,14 +170,12 @@ namespace ToDoListBot
                 toDoListService
             );
 
-            // Создаём раннер и регистрируем фоновые задачи
+            // ... внутри CreateUpdateHandler после создания backgroundRunner:
             var backgroundRunner = new BackgroundTaskRunner();
             backgroundRunner.AddTask(new ResetScenarioBackgroundTask(TimeSpan.FromHours(1), contextRepository, _botClient));
 
-            return (handler, contextRepository, backgroundRunner);
-
-
-            var notificationService = new NotificationService(() => new DataConnection("PostgreSQL", connString));
+            // Создаём NotificationService и фоновые задачи — ОБЯЗАТЕЛЬНО ДО return
+            var notificationService = new NotificationService(() => new LinqToDB.Data.DataConnection("PostgreSQL", connString));
             var notifTask = new NotificationBackgroundTask(notificationService, _botClient, userRepo);
             var deadlineTask = new DeadlineBackgroundTask(notificationService, userRepo, todoRepo);
             var todayTask = new TodayBackgroundTask(notificationService, userRepo, todoRepo);
@@ -185,6 +183,8 @@ namespace ToDoListBot
             backgroundRunner.AddTask(notifTask);
             backgroundRunner.AddTask(deadlineTask);
             backgroundRunner.AddTask(todayTask);
+
+            return (handler, contextRepository, backgroundRunner);
         }
 
         private static async Task SetMyCommandsAsync()

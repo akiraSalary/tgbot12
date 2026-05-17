@@ -109,6 +109,25 @@ namespace ToDoListBot.Infrastructure.DataAccess
             var result = all.Where(predicate).ToList();
             return result.AsReadOnly();
         }
+        public async Task<IReadOnlyList<ToDoItem>> GetActiveWithDeadline(Guid userId, DateTime from, DateTime to, CancellationToken ct = default)
+        {
+            using var db = _factory.CreateDataContext();
+            var models = await db.ToDoItems
+                .Where(i => i.UserId == userId && i.State == 0 && i.Deadline != null && i.Deadline >= from && i.Deadline <= to)
+                .ToListAsync(ct);
+
+            var userModel = await db.ToDoUsers.FirstOrDefaultAsync(u => u.UserId == userId, ct);
+            ToDoUser? user = userModel != null ? ModelMapper.MapFromModel(userModel) : null;
+
+            var items = models.Select(m =>
+            {
+                var item = ModelMapper.MapFromModel(m);
+                if (user != null) item.User = user;
+                return item;
+            }).ToList();
+
+            return items.AsReadOnly();
+        }
 
         public Task<ToDoItem?> GetToDoItemAsync(Guid toDoItemId, CancellationToken ct = default) => GetAsync(toDoItemId, ct);
         public Task<ToDoItem?> GetByIdAsync(Guid id, CancellationToken ct = default) => GetAsync(id, ct);
