@@ -1,9 +1,11 @@
-﻿using System;
+﻿
+using System;
 using LinqToDB.Mapping;
 
 namespace ToDoListBot.Infrastructure.DataAccess.Models
 {
-    [Table(Name = "Notifications")]
+    // Используем имя в нижнем регистре — это соответствует привычной PostgreSQL-таблице без кавычек
+    [Table(Name = "notifications")]
     public class NotificationModel
     {
         [PrimaryKey, Column(Name = "id")]

@@ -1,4 +1,5 @@
 ﻿
+using LinqToDB.Data;
 using System;
 using System.IO;
 using System.Threading;
@@ -7,6 +8,7 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using ToDoListBot.Infrastructure.DataAccess.Models;
 using ToDoListBot.BackgroundTasks;
 using ToDoListBot.Core.DataAccess;
 using ToDoListBot.Core.Services;
@@ -14,7 +16,6 @@ using ToDoListBot.Infrastructure;
 using ToDoListBot.Infrastructure.DataAccess;
 using ToDoListBot.TelegramBot;
 using ToDoListBot.TelegramBot.Scenarios;
-using LinqToDB.Data;
 
 namespace ToDoListBot
 {
@@ -133,7 +134,7 @@ namespace ToDoListBot
             Console.WriteLine($"Задачи: {tasksPath}");
 
             // repos
-            var connString = "Host=localhost;Database=todo;Username=postgres;Password=secret";
+            var connString = "Host=localhost;Database=ToDoList;Username=postgres;Password=secret";
             var factory = new DataContextFactory(connString);
             var userRepo = new SqlUserRepository(factory);
             var todoRepo = new SqlToDoRepository(factory);
@@ -175,7 +176,7 @@ namespace ToDoListBot
             backgroundRunner.AddTask(new ResetScenarioBackgroundTask(TimeSpan.FromHours(1), contextRepository, _botClient));
 
             // Создаём NotificationService и фоновые задачи — ОБЯЗАТЕЛЬНО ДО return
-            var notificationService = new NotificationService(() => new LinqToDB.Data.DataConnection("PostgreSQL", connString));
+            var notificationService = new NotificationService(() => factory.CreateDataContext());
             var notifTask = new NotificationBackgroundTask(notificationService, _botClient, userRepo);
             var deadlineTask = new DeadlineBackgroundTask(notificationService, userRepo, todoRepo);
             var todayTask = new TodayBackgroundTask(notificationService, userRepo, todoRepo);

@@ -2,6 +2,7 @@
 using LinqToDB.Data;
 using ToDoListBot.Core.DataAcces.Models;
 using ToDoListBot.Core.DataAccess.Models;
+using ToDoListBot.Infrastructure.DataAccess.Models;
 
 namespace ToDoListBot.Infrastructure.DataAccess
 {
@@ -16,5 +17,8 @@ namespace ToDoListBot.Infrastructure.DataAccess
         public ITable<ToDoItemModel> ToDoItems => this.GetTable<ToDoItemModel>();
         public ITable<ToDoListModel> ToDoLists => this.GetTable<ToDoListModel>();
         public ITable<ToDoUserModel> ToDoUsers => this.GetTable<ToDoUserModel>();
+
+        public ITable<NotificationModel> notifications => this.GetTable<NotificationModel>(); 
     }
+
 }
