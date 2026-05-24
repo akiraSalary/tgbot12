@@ -134,7 +134,10 @@ namespace ToDoListBot
             Console.WriteLine($"Задачи: {tasksPath}");
 
             // repos
-            var connString = "Host=localhost;Database=ToDoList;Username=postgres;Password=secret";
+
+            string? token = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+            var connString = "Host=localhost;Database=ToDoList;Username=postgres;Password=" + token;
             var factory = new DataContextFactory(connString);
             var userRepo = new SqlUserRepository(factory);
             var todoRepo = new SqlToDoRepository(factory);

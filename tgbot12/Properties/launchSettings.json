@@ -3,7 +3,8 @@
     "tgbot12": {
       "commandName": "Project",
       "environmentVariables": {
-        "TELEGRAM_BOT_TOKEN": "8445760730:AAF_P-rIAk_WJXYC2Rq0lUDuUsbDFCVzUoo"
+        "TELEGRAM_BOT_TOKEN": "8445760730:AAF_P-rIAk_WJXYC2Rq0lUDuUsbDFCVzUoo",
+        "DB_PASSWORD": "Maxim2007Mv0693"
       }
     }
   }
